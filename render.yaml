@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: fabrica-retrovisores-online
+    runtime: node
+    plan: free
+    buildCommand: npm install && node build.js
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: OWNER_NAME
+        value: dono
+      - key: OWNER_PASS
+        sync: false

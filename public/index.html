@@ -1,0 +1,908 @@
+<title>Fábrica de Retrovisores</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+/* Layout: barra de comando fixa no topo; linha de produção em colunas (setores 01 a 07) ao lado da carteira de pedidos e do registro. */
+:root{
+  --bg:#e6e9ec;--panel:#f6f7f8;--panel2:#eceff1;--line:#c5ccd2;--fg:#151b20;--mute:#566470;
+  --accent:#e0a800;--accent-ink:#1a1400;--ok:#137a4b;--bad:#c4372b;--info:#1d6fb0;
+  --f-d:'Barlow Condensed','Arial Narrow',sans-serif;--f-b:'IBM Plex Sans',system-ui,sans-serif;--f-m:'IBM Plex Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101418;--panel:#181d22;--panel2:#1f252b;--line:#2c343c;--fg:#e8ecef;--mute:#8d99a3;
+  --accent:#f5be1a;--accent-ink:#1a1400;--ok:#4cc38a;--bad:#ff6b5e;--info:#5aa9e6;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101418;--panel:#181d22;--panel2:#1f252b;--line:#2c343c;--fg:#e8ecef;--mute:#8d99a3;
+  --accent:#f5be1a;--accent-ink:#1a1400;--ok:#4cc38a;--bad:#ff6b5e;--info:#5aa9e6;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--f-b);padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));padding-block:0 32px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--panel)}
+button{font:inherit;color:inherit;cursor:pointer}
+.num{font-variant-numeric:tabular-nums;font-family:var(--f-m)}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--panel);border-bottom:2px solid var(--accent);margin-inline:calc(-1*max(16px,env(safe-area-inset-left,0px))) calc(-1*max(16px,env(safe-area-inset-right,0px)));padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
+h1{font:700 24px/1 var(--f-d);letter-spacing:.04em;text-transform:uppercase;margin:0}
+h1 small{display:block;font:500 11px var(--f-m);color:var(--mute);letter-spacing:.08em;margin-top:3px}
+.kpi{display:flex;flex-direction:column;min-width:0}
+.kpi b{font:500 18px var(--f-m)}
+.kpi span{font-size:11px;color:var(--mute);text-transform:uppercase;letter-spacing:.08em}
+.goal{flex:1 1 180px;min-width:140px}
+.bar{height:8px;background:var(--panel2);border:1px solid var(--line)}
+.bar i{display:block;height:100%;background:var(--accent);width:0}
+.ctl{display:flex;gap:4px;margin-left:auto}
+.ctl button,.btn{background:var(--panel2);border:1px solid var(--line);padding:5px 10px;border-radius:2px;font-weight:600}
+.ctl button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:hover:not(:disabled),.ctl button:hover{border-color:var(--accent)}
+.btn:focus-visible,.ctl button:focus-visible{outline:2px solid var(--info);outline-offset:1px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.sm{padding:2px 8px;font-size:12px}
+main{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,360px);gap:18px;margin-top:18px;align-items:start}
+@media (max-width:900px){main{grid-template-columns:minmax(0,1fr)}}
+#floor{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px;min-width:0}
+.sec{background:var(--panel);border:1px solid var(--line);min-width:0;display:flex;flex-direction:column}
+.sec h2{margin:0;padding:8px 12px;font:700 17px var(--f-d);letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;background:var(--panel2)}
+.sec h2 span{font:500 11px var(--f-m);color:var(--mute);letter-spacing:.06em;align-self:center}
+.sec .bd{padding:10px 12px;display:flex;flex-direction:column;gap:8px;flex:1}
+.sec .ft{padding:8px 12px;border-top:1px dashed var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--mute)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0}
+.row>span:first-child{min-width:0;overflow-wrap:anywhere}
+.mut{color:var(--mute);font-size:12px}
+.low{color:var(--bad)}
+.good{color:var(--ok)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 12px var(--f-m);border:1px solid var(--line);background:var(--panel2);padding:2px 7px}
+.mc{border:1px solid var(--line);padding:7px 9px;display:flex;flex-direction:column;gap:5px;background:var(--panel2)}
+.mc .st{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mute)}
+.led{width:9px;height:9px;border-radius:50%;background:var(--mute);flex:none}
+.run .led{background:var(--ok)}.setup .led,.nomat .led{background:var(--accent)}.broken .led{background:var(--bad)}
+.mc .bar{height:5px}
+.mc.run .bar i{background:var(--ok)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap}
+aside{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ord{border:1px solid var(--line);padding:9px 10px;display:flex;flex-direction:column;gap:6px;background:var(--panel2)}
+.ord h3{margin:0;font:600 14px var(--f-b)}
+.box{background:var(--panel);border:1px solid var(--line)}
+.box>h2{margin:0;padding:8px 12px;font:700 17px var(--f-d);letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--line)}
+.box>div{padding:10px 12px;display:flex;flex-direction:column;gap:8px}.box>.grid2{display:grid}
+#log{max-height:240px;overflow:auto;font-size:12px}
+#log p{margin:0 0 4px;color:var(--mute)}#log p:first-child{color:var(--fg)}
+#modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.6);display:grid;place-items:center;padding:16px}
+#modal>div{background:var(--panel);border:2px solid var(--accent);max-width:520px;width:100%;padding:20px;display:flex;flex-direction:column;gap:12px;max-height:100%;overflow:auto}
+#modal h2{margin:0;font:700 28px var(--f-d);text-transform:uppercase}
+#modal p{margin:0}
+@media (prefers-reduced-motion:no-preference){.bar i{transition:width .3s linear}}
+.ic{flex:none;vertical-align:-.25em}
+.sec h2 .ttl{font:inherit;color:inherit;letter-spacing:inherit;display:flex;align-items:center;gap:8px}
+.ord h3{display:flex;align-items:center;gap:8px}
+.ord h3 .ic{color:var(--accent)}
+.chip{display:inline-flex;align-items:center;gap:4px}
+.mcn{display:inline-flex;align-items:center;gap:6px}
+.run .mcn .ic{color:var(--ok)}
+.banner{margin-top:14px;border:1px solid var(--line);background:var(--panel);overflow:hidden}
+.banner svg{display:block;width:100%;height:auto;max-height:150px}
+.banner .bl{fill:var(--panel2);stroke:var(--line);stroke-width:2}
+.banner .ac{fill:var(--accent)}
+.banner .gl{fill:var(--info);opacity:.5}
+.banner .ln{stroke:var(--mute);stroke-width:3;fill:none;stroke-linecap:round}
+.banner .smoke{fill:var(--mute);opacity:.35}
+.banner text{font:700 22px var(--f-d);fill:var(--fg);letter-spacing:.08em}
+@media (prefers-reduced-motion:no-preference){
+.belt{animation:belt 3s linear infinite}@keyframes belt{to{transform:translateX(120px)}}
+.smoke{animation:smk 4s ease-out infinite}.smoke.s2{animation-delay:2s}@keyframes smk{from{transform:translateY(0);opacity:.4}to{transform:translateY(-34px);opacity:0}}
+.run .mcn .ic{animation:pls 1s ease-in-out infinite}@keyframes pls{50%{transform:scale(1.15)}}}
+.plant{margin-top:12px;border:1px solid var(--line);background:var(--panel)}
+.plant h2{margin:0;padding:8px 12px;font:700 17px var(--f-d);letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--line);background:var(--panel2)}
+.plant .sc{overflow-x:auto}
+.plant svg{display:block;width:100%;min-width:760px;height:auto}
+.zn{fill:var(--bg);stroke:var(--line);stroke-width:1.5}
+.zt{font:700 15px var(--f-d);fill:var(--mute);letter-spacing:.08em;text-transform:uppercase}
+.bk{stroke:var(--line);stroke-width:1.5;fill:var(--panel2)}
+.bk.r{fill:var(--ok)}.bk.w{fill:var(--accent)}.bk.b{fill:var(--bad)}
+.bt{font:600 15px var(--f-m);fill:var(--accent-ink)}
+.bt.d{fill:var(--fg)}
+.fl{stroke:var(--accent);stroke-width:3;stroke-dasharray:6 6;fill:none}
+.bar2{fill:var(--accent)}.bar2.lo{fill:var(--bad)}
+.zc{font:500 13px var(--f-m);fill:var(--mute)}
+@media (prefers-reduced-motion:no-preference){.fl{animation:dsh .8s linear infinite}@keyframes dsh{to{stroke-dashoffset:-12}}.bk.r{animation:glow 1.2s ease-in-out infinite}@keyframes glow{50%{opacity:.65}}}
+.tabbar{display:flex;gap:2px;border-bottom:1px solid var(--line);margin-bottom:12px;overflow-x:auto}
+.tabbar button{background:none;border:0;border-bottom:3px solid transparent;padding:8px 14px;font:700 17px var(--f-d);letter-spacing:.05em;text-transform:uppercase;color:var(--mute);white-space:nowrap}
+.tabbar button[aria-selected="true"]{color:var(--fg);border-color:var(--accent)}
+.btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.plant{overflow-x:auto}.plant canvas{display:block;width:100%;min-width:720px;height:auto}
+.plant h2 small{font:500 11px var(--f-m);color:var(--mute);margin-left:8px;text-transform:none;letter-spacing:0}
+.gr{stroke:var(--line);stroke-width:1}.ax{font:11px var(--f-m);fill:var(--mute)}.br{fill:var(--ok)}.be{fill:var(--bad)}.ln2{fill:none;stroke:var(--info);stroke-width:2.5}.gl2{stroke:var(--accent);stroke-dasharray:6 4;stroke-width:1.5}
+.svgc svg{display:block;width:100%;height:auto}
+.box>.kp{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.vs{display:flex;flex-direction:column;gap:12px;min-width:0}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}th{font:600 11px var(--f-m);color:var(--mute);text-transform:uppercase;letter-spacing:.06em}.tw{overflow-x:auto}
+#toast{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));z-index:35;background:var(--fg);color:var(--bg);padding:10px 14px;max-width:min(420px,calc(100vw - 32px));font-weight:600;border-left:4px solid var(--accent)}
+</style>
+<header>
+  <h1>Fábrica de Retrovisores<small>CARROS · ÔNIBUS · CAMINHÕES</small></h1>
+  <div class="kpi"><b id="k-money" class="num">R$ 0</b><span>Caixa</span></div>
+  <div class="kpi"><b id="k-day" class="num">Dia 1</b><span id="k-clock">06:00</span></div>
+  <div class="kpi"><b id="k-rep" class="num">60</b><span>Reputação</span></div>
+  <div class="goal"><div class="row mut"><span>Meta: R$ 1.800.000 em caixa</span><span id="k-goal" class="num">0%</span></div><div class="bar"><i id="k-bar"></i></div></div>
+  <div class="ctl" role="group" aria-label="Velocidade">
+    <input id="vol" type="range" min="0" max="100" value="60" aria-label="Volume" style="width:84px;accent-color:var(--accent)">
+    <button data-act="mus" id="mus" aria-pressed="false">Música</button>
+    <button data-act="snd" id="snd" aria-pressed="false">Efeitos</button>
+    <button data-act="speed" data-a="0" id="sp0" aria-pressed="false">Pausa</button>
+    <button data-act="speed" data-a="1" id="sp1" aria-pressed="true">1x</button>
+    <button data-act="speed" data-a="3" id="sp3" aria-pressed="false">3x</button>
+    <button data-act="speed" data-a="8" id="sp8" aria-pressed="false">8x</button>
+  </div>
+</header>
+<main>
+  <div class="vs"><nav class="tabbar" id="tabs" role="tablist" aria-label="Seções"></nav>
+    <div id="pane-fab" class="vs"><div class="plant"><h2>Planta da fábrica ao vivo<small>clique numa injetora para trocar o molde ou chamar a manutenção</small></h2><canvas id="cv" role="img" aria-label="Planta animada da fábrica"></canvas></div>
+    <div id="auto" class="chips"></div>
+    <div class="mut">Capacidade base por estação: Carro 1.020 por dia · Ônibus 240 por dia · Caminhão 300 por dia (36 por hora). P&D e gerentes aumentam esses números.</div>
+    <section id="floor" aria-label="Painéis dos setores"></section></div>
+    <div id="pane-mar" class="vs" hidden></div><div id="pane-ach" class="vs" hidden></div><div id="pane-est" class="vs" hidden></div><div id="pane-qua" class="vs" hidden></div><div id="pane-mod" class="vs" hidden></div><div id="pane-pes" class="vs" hidden></div><div id="pane-nfb" class="vs" hidden></div><div id="pane-fin" class="vs" hidden></div><div id="pane-res" class="vs" hidden></div><div id="pane-cli" class="vs" hidden></div></div>
+  <aside>
+    <div class="box" id="campbox"><h2>Campanha</h2><div id="camp"></div></div>
+    <div class="box"><h2>Conselheiro</h2><div id="adv"></div></div>
+    <div class="box"><h2>Ocorrências nas linhas</h2><div id="evs"></div></div>
+    <div class="box"><h2>Agenda de visitas</h2><div id="vis"></div></div>
+    <div class="box"><h2>Propostas de clientes</h2><div id="offers"></div></div>
+    <div class="box"><h2>Carteira de pedidos</h2><div id="orders"></div></div>
+    <div class="box"><h2>Missões</h2><div id="miss"></div></div>
+    <div class="box"><h2>Registro da fábrica</h2><div><div id="log"></div><button class="btn sm" data-act="reset">Novo jogo</button></div></div>
+  </aside>
+</main>
+<p class="mut" style="margin-top:16px">Marcas citadas apenas como referência de clientes fictícios. Sem vínculo ou patrocínio das empresas.</p>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<div id="modal" hidden></div>
+<script>
+const DAY=60,GOAL=60000,KEYS=['car','bus','truck'];
+const PR={car:{n:'Carro',s:'C',res:1,vid:1,inj:2,col:2,mon:2,emb:1,price:3.67},
+bus:{n:'Ônibus',s:'Ô',res:2,vid:2,inj:4,col:2,mon:2,emb:1,price:7.33},
+truck:{n:'Caminhão',s:'T',res:3,vid:2,inj:5,col:3,mon:3,emb:2,price:9.33}};
+const MAT={resina:{n:'Resina PP (kg)',p:.333,lot:1800},vidro:{n:'Espelho de vidro',p:.467,lot:1200},kit:{n:'Kit motor e regulagem',p:.333,lot:1200},cola:{n:'Adesivo PU',p:.1,lot:1800},caixa:{n:'Caixa de papelão',p:.133,lot:1800},espuma:{n:'Espuma para mantas',p:.167,lot:1800}};
+const CLI={car:['Volkswagen','Fiat','Chevrolet','Toyota','Hyundai','Honda','Renault','Ford','Jeep','Nissan','Peugeot','Citroën'],bus:['Marcopolo','Mercedes-Benz Ônibus','Volvo Ônibus','Scania Ônibus','Comil','Caio','Neobus','Agrale'],truck:['Scania','Volvo Caminhões','Mercedes-Benz Caminhões','DAF','Iveco','MAN / Volkswagen Caminhões','Ford Cargo','Agrale']};
+const SEC={col:{inn:'hous',out:'glued',mats:p=>({vidro:PR[p].vid,cola:1})},mon:{inn:'glued',out:'asm',mats:p=>({kit:1})},qa:{inn:'asm',out:'qok',mats:p=>({})},emb:{inn:'qok',out:'pack',mats:p=>({caixa:1,manta:1})}};
+const z=()=>({car:0,bus:0,truck:0});
+const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+let G,timer=null,uid=1,AC=null,SND=false;
+let MG=null,musicOn=false,musicT=null,vol=.6,hum=null;
+function au(){if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(!MG){MG=AC.createGain();MG.gain.value=vol;MG.connect(AC.destination)}if(AC.state==='suspended')AC.resume();return AC}
+function tone(f,d,ty,g,at){const n=AC.currentTime+(at||0),o=AC.createOscillator(),v=AC.createGain();o.type=ty;o.frequency.setValueAtTime(f,n);v.gain.setValueAtTime(g,n);v.gain.exponentialRampToValueAtTime(.001,n+d);o.connect(v);v.connect(MG);o.start(n);o.stop(n+d+.02)}
+function sfx(t){if(!SND)return;try{au();
+ if(t==='ok'){tone(660,.18,'square',.05);tone(880,.22,'square',.05,.09)}
+ else if(t==='bad'){tone(140,.3,'sawtooth',.06);tone(90,.3,'sawtooth',.06,.12)}
+ else if(t==='click')tone(520,.06,'square',.03)
+ else if(t==='day'){tone(392,.2,'triangle',.06);tone(523,.3,'triangle',.06,.15)}
+ else if(t==='ach'){[523,659,784,1046].forEach((f,i)=>tone(f,.25,'triangle',.06,i*.09))}
+ else if(t==='siren'){for(let i=0;i<6;i++)tone(i%2?900:620,.25,'sawtooth',.05,i*.25)}}catch(e){}}
+function humUpdate(){try{if(!SND){if(hum)hum.g.gain.setTargetAtTime(0,AC.currentTime,.3);return}au();
+ if(!hum){const g=AC.createGain(),f=AC.createBiquadFilter(),a=AC.createOscillator(),b=AC.createOscillator();f.type='lowpass';f.frequency.value=260;g.gain.value=0;a.type='sawtooth';a.frequency.value=52;b.type='square';b.frequency.value=104;a.connect(f);b.connect(f);f.connect(g);g.connect(MG);a.start();b.start();hum={g}}
+ const run=G.inj.filter(m=>m.st==='run').length+[G.col,G.mon,G.qa,G.emb].reduce((x,a)=>x+a.filter(s=>s.p).length,0);
+ hum.g.gain.setTargetAtTime(G.speed&&!(G.fx.blackout>G.t)?Math.min(.05,.006*run):0,AC.currentTime,.4);
+ if(G.speed&&G.inj.some(m=>m.st==='run')&&Math.random()<.5)tone(1800+Math.random()*400,.03,'square',.012)}catch(e){}}
+function musicLoop(){clearInterval(musicT);musicT=null;if(!musicOn)return;try{au()}catch(e){return}let st=0,ix=2;const sc=[220,247,277,330,370,440,494];
+ musicT=setInterval(()=>{try{if(G.speed===0)return;ix=Math.max(0,Math.min(sc.length-1,ix+ri(-2,2)));tone(sc[ix],.7,'triangle',.035);if(st%8===0)tone(sc[0]/2,1.4,'sine',.05);if(st%4===2)tone(sc[(ix+2)%sc.length]*2,.4,'sine',.018);st++}catch(e){}},430)}
+
+function fresh(){return{bl:{},me:null,vagas:null,mode:'camp',camp:{ch:0,t0:0,sent0:0,late0:0,retry:0,stars:[],done:false,started:false},ach:{},shifts:1,ot:false,tr:{inj:0,col:0,mon:0,qa:0,emb:0},wh:0,fork:0,sup:0,lab:0,cert:0,esc:0,qaTot:0,vu:{b:1,p:0,t:0,c:0},auto:{buy:true,ship:true},t:0,day:1,money:14000,rep:60,speed:0,prod:0,sent:0,won:false,over:false,
+ raw:{led:0,resis:0,cam:0,resina:1800,vidro:1200,kit:1200,cola:1800,caixa:1800,espuma:1800,manta:900},hous:z(),glued:z(),asm:z(),qok:z(),pack:z(),scrap:0,recv:0,delivered:0,res:{},brand:{},hist:[],dayRev:0,dayExp:0,mdone:{},diff:1,tab:'fab',qa:[{p:null,t:0},{p:null,t:0}],mnt:[{p:null,t:0}],moi:[{p:null,t:0}],fer:[{p:null,t:0}],reb:0,recycled:0,mold:{car:0,bus:0,truck:0},amb:0,ref:0,brig:0,mult:0,ger:{prod:0,log:0,qual:0,man:0,cam:0,sc:0},moral:70,acc:0,ev:[],fx:{},visit:null,nextVisit:150,vlast:'',nfb:{ph:0,prog:0,run:false,done:false,contract:0},
+ inj:[{p:'auto',cur:null,prog:0,setup:0,rep:0,broken:false,st:'idle'},{p:'auto',cur:null,prog:0,setup:0,rep:0,broken:false,st:'idle'}],
+ col:[{p:null,t:0},{p:null,t:0}],mon:[{p:null,t:0},{p:null,t:0}],emb:[{p:null,t:0},{p:null,t:0}],
+ docks:1,dl:[],queue:[],unl:[],trucks:[{busy:0,ord:null},{busy:0,ord:null}],offers:[],orders:[],log:['Fábrica aberta. Aceite propostas e mantenha o estoque abastecido.']};}
+const say=m=>{G.log.unshift(m);G.log.length=Math.min(G.log.length,40)};
+const R$=n=>'R$ '+Math.round(n*K).toLocaleString('pt-BR');
+function pipe(p){return G.hous[p]+G.glued[p]+G.asm[p]+G.qok[p]+G.pack[p]}
+function deficit(p){let d=0;G.orders.forEach(o=>{if(o.state==='open'&&o.p===p)d+=o.qty});return d-pipe(p)}
+function pickAuto(){let b=null,bd=0;KEYS.forEach(p=>{const d=deficit(p);if(d>bd){bd=d;b=p}});return b}
+const RATE={car:17,bus:4,truck:5},RB=1800,K=30;
+const sh=n=>n>=1000?(n/1000).toFixed(1).replace('.',',')+'k':String(Math.round(n));
+const tm=n=>{const m=Math.round(n*24);return m>=60?Math.floor(m/60)+' h'+(m%60?' '+m%60+' min':''):m+' min'};
+const fm=v=>{v*=K;return Math.abs(v)>=1e6?(v/1e6).toFixed(1).replace('.',',')+' mi':Math.abs(v)>=1000?Math.round(v/1000)+' mil':String(Math.round(v))};
+function stR(k,p){return RATE[p]*shiftMul()*(1+.06*(G.tr[k]||0))*(G.ot?1.2:1)*(p==='truck'&&G.ger.cam||p==='car'&&G.ger.aut||p==='bus'&&G.ger.bus?1.15:1)*(k==='col'&&G.res.cura?1.25:1)*(G.me&&G.me.k===k&&(!G.me.p||G.me.p===p)?1+G.me.b:1)*(k==='col'&&G.fx.colSlow>G.t?.8:1)*(k==='emb'&&G.res.auto?1.3:1)}
+function inject(){G.inj.forEach(m=>{
+ if(m.broken){if(m.rep===0)m.bt=(m.bt||0)+1;if(m.bt>=12){m.rep=1;m.bt=0}if(m.rep>0&&--m.rep===0){m.broken=false;m.bt=0;say('Injetora reparada.')}m.st='broken';m.prog=0;return}
+ if(m.setup>0){m.setup--;m.st='setup';m.prog=0;return}
+ const p=m.p==='auto'?(m.cur&&deficit(m.cur)>0?m.cur:pickAuto()):m.p;
+ if(!p){m.st='idle';m.prog=0;return}
+ if(m.cur&&m.cur!==p){m.cur=p;m.setup=G.res.molde?1:3;m.st='setup';m.prog=0;say('Troca de molde: '+PR[p].n+'.');return}
+ m.cur=p;
+ if(stR('inj',p)<=0){m.st='idle';m.prog=0;return}const n=Math.min(Math.floor(stR('inj',p)),Math.floor(G.raw.resina/PR[p].res));
+ if(n<=0||G.reb>=RB||G.mold[p]>=100||G.fx.blackout>G.t){m.st='nomat';m.prog=0;return}
+ G.raw.resina-=n*PR[p].res;G.hous[p]+=n;G.prod+=n;G.reb=Math.min(RB*1.3,G.reb+n*PR[p].res*.4);G.mold[p]=Math.min(100,G.mold[p]+n*.02);m.st='run';m.prog=n;
+ if(Math.random()<brk()){m.broken=true;m.prog=0;m.st='broken';say('Injetora parou: falha no sistema de aquecimento.');sfx('bad')}})}
+function stage(k){const d=SEC[k];G[k].forEach(s=>{
+ if(s.down>0){s.down--;s.why='down';s.p=null;s.n=0;s.u=0;return}
+ let tl=1,tot=0,main=null,anyIn=false;
+ const ord=KEYS.slice().sort((a,b)=>deficit(b)-deficit(a)||G[d.inn][b]-G[d.inn][a]);
+ for(const p of ord){if(tl<=.001)break;if(G[d.inn][p]<=0)continue;anyIn=true;
+  const mt=d.mats(p),r=stR(k,p);let n=Math.min(Math.floor(tl*r),G[d.inn][p]);if(k==='emb')n=Math.min(n,Math.max(0,packCap()-KEYS.reduce((x,q)=>x+G.pack[q],0)));
+  for(const m in mt)n=Math.min(n,Math.floor(G.raw[m]/mt[m]));
+  if(n<=0)continue;
+  G[d.inn][p]-=n;for(const m in mt)G.raw[m]-=n*mt[m];
+  let ok=n;if(k==='qa'){const sc=Math.min(n,Math.max(0,Math.round(n*scrapRate()+(Math.random()-.5))));let ex=0;for(let i=0;i<sc;i++)if(Math.random()>qDet())ex++;const cg=sc-ex;ok=n-cg;G.scrap+=cg;G.esc+=ex;G.qaTot+=n;if(G.scrap-(G.scrapSay||0)>=60){G.scrapSay=G.scrap;say('Inspeção de qualidade: '+G.scrap+' peças refugadas até agora.')}}
+  G[d.out][p]+=ok;tl-=n/r;tot+=n;main=main||p}
+ s.p=main;s.n=tot;s.u=1-Math.max(0,tl);s.why=tot?'run':anyIn?'nomat':'noin'})}
+function receive(){
+ G.dl.forEach(d=>d.eta--);
+ G.dl=G.dl.filter(d=>{if(d.eta<=0){G.queue.push(d);return false}return true});
+ G.unl=G.unl.filter(u=>{if(--u.left<=0){{const room=Math.max(0,whCap()-G.raw[u.item]),add=Math.min(room,u.qty);G.raw[u.item]+=add;if(add<u.qty)say('Almoxarifado cheio: '+sh(u.qty-add)+' × '+MAT[u.item].n+' devolvidas ao fornecedor.')}G.recv++;say('Recebido e conferido: '+u.qty+' × '+MAT[u.item].n+'.');return false}return true});
+ while(G.unl.length<G.docks&&G.queue.length){const d=G.queue.shift();G.unl.push({item:d.item,qty:d.qty,left:Math.max(1,3-G.fork)})}}
+function logistics(){G.trucks.forEach(tk=>{if(tk.busy>0&&--tk.busy===0){const o=tk.ord;tk.ord=null;
+ const late=G.t>o.due,pay=o.pay*(late?(blv(o.client)?.92:.85):1);earn(pay);sfx(late?"bad":"ok");G.sent+=o.qty;G.delivered++;const bb=G.brand[o.client]||(G.brand[o.client]={u:0,late:0,rev:0});bb.u+=o.qty;bb.rev+=pay;if(late)bb.late++;G.rep=Math.max(0,Math.min(100,G.rep+(late?-1:2)));
+ say((late?'Entrega atrasada: ':'Entregue: ')+o.qty+' × '+PR[o.p].n+' para '+o.client+' ('+R$(pay)+').');
+ G.orders=G.orders.filter(x=>x.id!==o.id)}})}
+function market(){
+ G.offers=G.offers.filter(o=>o.exp>G.t);
+ if(G.offers.length<(G.adm?5:4)&&Math.random()<(G.fx.peak?1/8:1/12)*(G.adm?(inR(G.t%DAY,ADM.s,CLEN)?1.5:.7):1)){
+  const p=['car','car','bus','truck'][ri(0,3)],q=Math.round((p==='car'?ri(10,30)*40:p==='bus'?ri(4,12)*20:ri(4,12)*25)*(G.day<=3?.5:1)*(G.fx.peak?1.6:1));
+  const v=pickVar(),cl=pickCl(p),bb=G.brand[cl],unit=PR[p].price*(1+.06*blv(cl))*(.9+G.rep/400+Math.min(.15,(bb?bb.u:0)/18000))*(.92+Math.random()*.2)*(p==='truck'&&G.ger.cam||p==='car'&&G.ger.aut||p==='bus'&&G.ger.bus?1.05:1)*VAR[v].m*(G.me&&G.me.k==='exp'?1+G.me.b/3:1)*(1+.04*G.cert)*tierP(cl);
+  G.offers.push({id:uid++,p,qty:q,pay:Math.round(unit*q),client:cl,v,win:Math.round(ri(150,300)*(1+.1*blv(cl))),exp:G.t+90})}
+ G.orders.forEach(o=>{if(o.state==='open'&&G.t>o.due){spend(o.pay*.05*(tierOf(o.client)==='p'?2:1));G.rep=Math.max(0,G.rep-(tierOf(o.client)==='p'?5:3));say('Prazo perdido: '+o.client+' cancelou o pedido (multa '+R$(o.pay*.05)+').');o.dead=1}});
+ G.orders=G.orders.filter(o=>!o.dead)}
+function endDay(){
+ const n=G.qa.length+G.inj.length+G.col.length+G.mon.length+G.emb.length+G.docks+G.trucks.length,c=150+30*(n+G.mnt.length+G.moi.length+G.fer.length)+staffCost();
+ spend(c);say('Dia '+G.day+' encerrado. Folha e despesas: '+R$(c)+'.');G.hist.push({d:G.day,m:G.money,r:G.dayRev,e:G.dayExp,p:ppm()});dayToast(G.dayRev,G.dayExp);if(G.hist.length>60)G.hist.shift();G.dayRev=0;G.dayExp=0;G.day++;recallCheck();sfx("day");
+ if(G.money<-12000&&!G.over){G.over=true;pause();saveScore('derrota');modal('lose')}
+ else if(G.mode!=='camp'&&G.money>=GOAL&&!G.won){G.won=true;pause();saveScore('vitória');modal('win')}}
+function tick(){G.t++;receive();logistics();if(!(G.fx.blackout>G.t)){stage('emb');stage('qa');stage('mon');stage('col');inject()}market();checkM();extra();campTick();achTick();if(G.t%DAY===0)endDay();humUpdate();render();if(G.t%10===0)save()}
+function pause(){G.speed=0;clearInterval(timer);timer=null}
+function setSpeed(s){G.speed=s;clearInterval(timer);timer=null;if(s>0)timer=setInterval(tick,1000/s)}
+function save(){try{localStorage.setItem('fabrica-retrovisores',JSON.stringify(G))}catch(e){}}
+function load(){try{const s=localStorage.getItem('fabrica-retrovisores');if(s){const g=JSON.parse(s);if(g&&g.inj&&g.qa&&g.hist&&g.nfb&&g.ger&&g.ger.sc!==undefined&&g.auto&&g.vu&&g.camp&&g.ach)return g}}catch(e){}return null}
+const UP={mnt:{max:3,cost:n=>2000*n,arr:()=>G.mnt,add:()=>({p:null,t:0}),n:'estação de mantas'},moi:{max:3,cost:n=>2500*n,arr:()=>G.moi,add:()=>({p:null,t:0}),n:'moinho'},fer:{max:3,cost:n=>3500*n,arr:()=>G.fer,add:()=>({p:null,t:0}),n:'ferramenteiro'},qa:{max:4,cost:n=>2500*n,arr:()=>G.qa,add:()=>({p:null,t:0}),n:'posto de inspeção'},inj:{max:6,cost:n=>7000+2500*(n-2),arr:()=>G.inj,add:()=>({p:'auto',cur:null,prog:0,setup:0,rep:0,broken:false,st:'idle'}),n:'injetora'},
+col:{max:5,cost:n=>3000*n,arr:()=>G.col,add:()=>({p:null,t:0}),n:'estação de colagem'},
+mon:{max:5,cost:n=>3000*n,arr:()=>G.mon,add:()=>({p:null,t:0}),n:'bancada de montagem'},
+emb:{max:4,cost:n=>2500*n,arr:()=>G.emb,add:()=>({p:null,t:0}),n:'posto de embalagem'},
+dock:{max:3,cost:n=>3500*n,n:'doca de recebimento'},truck:{max:5,cost:n=>4500*n,n:'caminhão da frota'}};
+const cnt=k=>k==='dock'?G.docks:k==='truck'?G.trucks.length:UP[k].arr().length;
+function A(act,a){
+ if(act==='speed')return setSpeed(+a);
+ if(act==='tab'){G.tab=a;return render()}
+ if(act==='diff'){G.diff=+a;G.money=[20000,14000,9000][+a];document.querySelectorAll('[data-act=diff]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.a===a)));return render()}
+ if(act==='mus'){musicOn=!musicOn;musicLoop();return render()}
+ if(act==='snd'){SND=!SND;sfx('click');humUpdate();return render()}
+ if(['buy','up','accept','ship','repair','res','hire','ev','prep','drill','nfb','shift','ot','train','unlock','cert','sup'].includes(act))sfx('click');
+ if(act==='buy'){const m=MAT[a],c=m.lot*mp(a);if(G.money>=c){spend(c);G.dl.push({item:a,qty:m.lot,eta:Math.max(2,ri(SUP[G.sup].eta[0],SUP[G.sup].eta[1])+(Math.random()<SUP[G.sup].risk?10:0)-(G.res.kanban?5:0)-(G.ger.sc?3:0))});say('Pedido de compra: '+m.lot+' × '+m.n+' ('+R$(c)+').')}}
+ else if(act==='cycle'){const m=G.inj[+a],o=['auto','car','bus','truck'];m.p=o[(o.indexOf(m.p)+1)%4]}
+ else if(act==='repair'){const m=G.inj[+a];if(m.broken&&m.rep===0&&G.money>=150){spend(150);m.rep=4;say('Manutenção chamada (R$ 4.500).')}}
+ else if(act==='up'){const u=UP[a],n=cnt(a),c=u.cost(n);if(n<u.max&&G.money>=c){spend(c);
+  if(a==='dock')G.docks++;else if(a==='truck')G.trucks.push({busy:0,ord:null});else u.arr().push(u.add());say('Investimento: '+u.n+' ('+R$(c)+').')}}
+ else if(act==='accept'){const i=G.offers.findIndex(o=>o.id===+a);if(i>=0){const o=G.offers.splice(i,1)[0];o.state='open';o.due=G.t+o.win;G.orders.push(o);say('Pedido aceito: '+o.qty+' × '+PR[o.p].n+' para '+o.client+'.')}}
+ else if(act==='decline'){G.offers=G.offers.filter(o=>o.id!==+a)}
+ else if(act==='ship'){const o=G.orders.find(x=>x.id===+a),tk=G.trucks.find(t=>t.busy===0);
+  if(o&&tk&&o.state==='open'&&canShip(o)){shipTake(o);o.state='transit';tk.ord=o;tk.busy=tk.trip=9+ri(0,6);shipAt=performance.now()/1000;say('Expedição: carga de '+o.qty+' × '+PR[o.p].n+' saiu para '+o.client+'.')}}
+ else if(act==='res'){const r=RES.find(x=>x.id===a);if(r&&!G.res[r.id]&&G.money>=r.c){spend(r.c);G.res[r.id]=1;say('P&D concluído: '+r.n+'.')}}
+ else if(act==='hire')hire(a)
+ else if(act==='ev'){const p=a.split(':');resolveEv(+p[0],+p[1])}
+ else if(act==='prep'){if(G.visit&&G.visit.prep<3&&G.money>=600){spend(600);G.visit.prep++;G.moral=Math.min(100,G.moral+3);say('Preparação da visita: 5S e treinamento (R$ 18.000).')}}
+ else if(act==='drill'){if(G.money>=800){spend(800);G.fx.drill=G.t+120;G.moral=Math.min(100,G.moral+2);say('Simulado de emergência feito: brigada mais preparada por 2 dias.')}}
+ else if(act==='nfb'){const n=G.nfb,ph=NFB[n.ph];if(ph&&!n.run&&!n.done&&G.money>=ph.cost&&(!ph.deliver||G.pack.truck>=ph.deliver)){spend(ph.cost);if(ph.deliver)G.pack.truck-=ph.deliver;n.run=true;n.prog=0;say('Projeto NFB: fase iniciada ('+ph.n+').')}}
+ else if(act==='auto'){G.auto[a]=!G.auto[a]}
+ else if(act==='sup'){G.sup=(G.sup+1)%SUP.length;say('Fornecedor: '+SUP[G.sup].n+'.')}
+ else if(act==='shift'){G.shifts=+a}
+ else if(act==='ot'){G.ot=!G.ot}
+ else if(act==='train'){const l=G.tr[a];if(l<3&&G.money>=TRC(l)){spend(TRC(l));G.tr[a]++;say('Treinamento concluído: '+TRN[a]+'.')}}
+ else if(act==='unlock'){const v=VAR[a];if(v&&!G.vu[a]&&G.money>=v.c){spend(v.c);G.vu[a]=1;say('Modelo homologado: '+v.n+'.')}}
+ else if(act==='cert')certTry()
+ else if(act==='reset'){pause();G=fresh();modal('intro')}
+ else if(act==='go'){document.getElementById('modal').hidden=true;campBegin();setSpeed(1)}
+ else if(act==='mode'){G.mode=a;document.querySelectorAll('[data-act=mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.a===a)))}
+ render()}
+function modal(k){const m=document.getElementById('modal');m.hidden=false;
+ const T={intro:['Bem-vindo à linha','Você gerencia uma fábrica de retrovisores para carros, ônibus e caminhões. Compre resina, espelhos, kits de motor, adesivo e caixas. A resina vira carcaça nas injetoras, o espelho é colado, o kit é montado, o conjunto é embalado e a expedição despacha pelo caminhão da frota. Aceite propostas, entregue no prazo e chegue a '+R$(GOAL)+' em caixa. O Conselheiro, à direita, aponta o que está travando a fábrica. Cada estação processa até 1.020 retrovisores de carro por dia, 240 de ônibus ou 300 de caminhão (36 por hora). Os clientes são montadoras conhecidas, citadas só como referência no jogo, sem vínculo com as empresas.','Abrir a fábrica'],
+ win:['Meta batida','A fábrica chegou a '+R$(GOAL)+' em caixa no dia '+G.day+'. Você pode continuar jogando e expandir a operação.','Continuar'],
+ lose:['Fábrica falida','O caixa passou de -R$ 360.000 Comece um novo jogo e cuide do capital de giro.','Novo jogo']}[k];
+ m.innerHTML='<div role="dialog" aria-modal="true"><h2>'+T[0]+'</h2><p>'+T[1]+'</p>'+(k==='intro'?'<div class="chips" role="group" aria-label="Dificuldade">'+['Fácil','Normal','Difícil'].map((n,i)=>'<button class="btn" data-act="diff" data-a="'+i+'" aria-pressed="'+(G.diff===i)+'">'+n+'</button>').join('')+'</div>':'')+'<button class="btn pri" data-act="'+(k==='lose'?'reset':'go')+'" autofocus>'+T[2]+'</button></div>'}
+document.addEventListener('pointerdown',e=>{const b=e.target.closest('[data-act]');if(b&&!b.disabled){e.preventDefault();b._d=1;A(b.dataset.act,b.dataset.a)}});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(b&&!b.disabled&&e.detail===0)A(b.dataset.act,b.dataset.a)});
+const $=id=>document.getElementById(id);
+const IC={
+car:'<path d="M6 52L24 40"/><path d="M22 22Q22 14 32 14H50Q58 14 58 22V38Q58 46 50 46H32Q22 46 22 38Z"/><path d="M28 22H52V38H28Z" fill="currentColor" opacity=".25"/>',
+bus:'<path d="M6 20H30M6 44H30"/><rect x="30" y="6" width="26" height="50" rx="4"/><rect x="34" y="10" width="18" height="42" rx="2" fill="currentColor" opacity=".25"/>',
+truck:'<path d="M6 24H24M12 50H24"/><rect x="24" y="6" width="34" height="30" rx="3"/><rect x="28" y="10" width="26" height="22" rx="2" fill="currentColor" opacity=".25"/><rect x="24" y="40" width="24" height="14" rx="3"/>',
+rec:'<path d="M32 4V26M22 18L32 28L42 18"/><path d="M8 38H56V58H8Z"/><path d="M8 48H56M32 38V58"/>',
+inj:'<rect x="6" y="36" width="52" height="14" rx="2"/><path d="M14 36L20 20H32L38 36"/><rect x="42" y="12" width="16" height="24" rx="2"/><path d="M10 50V58M54 50V58M22 43H34"/>',
+glue:'<path d="M32 6C32 6 16 26 16 38A16 16 0 0 0 48 38C48 26 32 6 32 6Z"/><path d="M24 40A8 8 0 0 0 32 48" opacity=".6"/>',
+gear:'<circle cx="32" cy="32" r="10"/><path d="M32 6V16M32 48V58M6 32H16M48 32H58M13.6 13.6L20.7 20.7M43.3 43.3L50.4 50.4M13.6 50.4L20.7 43.3M43.3 20.7L50.4 13.6"/>',
+box:'<path d="M8 22L32 10L56 22V46L32 58L8 46Z"/><path d="M8 22L32 34L56 22M32 34V58"/>',
+stack:'<path d="M6 54H58"/><rect x="10" y="34" width="20" height="20"/><rect x="34" y="34" width="20" height="20"/><rect x="22" y="14" width="20" height="20"/>',
+qa:'<circle cx="28" cy="28" r="16"/><path d="M40 40L56 56M21 28L26 33L36 22"/>',
+mnt:'<rect x="8" y="14" width="48" height="10" rx="5"/><rect x="8" y="29" width="48" height="10" rx="5"/><rect x="8" y="44" width="48" height="10" rx="5"/>',
+moi:'<path d="M12 10H52L42 34H22Z"/><path d="M22 34V54H42V34"/><path d="M28 20L36 28M36 20L28 28"/>',
+fer:'<path d="M10 54L36 28"/><path d="M26 10H46L54 18L46 26L38 18Z"/>',
+amb:'<rect x="8" y="8" width="48" height="48" rx="6"/><path d="M32 18V46M18 32H46"/>',
+tr:'<path d="M4 44V20H38V44M38 28H50L60 38V44H38"/><circle cx="16" cy="48" r="5"/><circle cx="48" cy="48" r="5"/>'};
+const SI={'01':'rec','02':'inj','03':'glue','04':'gear','05':'qa','06':'box','07':'stack','08':'tr','09':'mnt','10':'moi','11':'fer','12':'amb'};
+const ic=(k,s)=>'<svg class="ic" width="'+(s||24)+'" height="'+(s||24)+'" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+IC[k]+'</svg>';
+
+const btn=(act,a,txt,dis,cls)=>'<button class="btn '+(cls||'')+'" data-act="'+act+'" data-a="'+a+'"'+(dis?' disabled':'')+'>'+txt+'</button>';
+const sec=(n,t,sub,bd,ft)=>'<div class="sec"><h2><span class="ttl">'+ic(SI[n],26)+t+'</span><span>SETOR '+n+(sub?' · '+sub:'')+'</span></h2><div class="bd">'+bd+'</div>'+(ft?'<div class="ft">'+ft+'</div>':'')+'</div>';
+const chips=o=>'<div class="chips">'+KEYS.map(p=>'<span class="chip">'+ic(p,16)+PR[p].n+' '+o[p]+'</span>').join('')+'</div>';
+const upf=(k,label)=>{const u=UP[k],n=cnt(k),c=u.cost(n);return '<span>'+label+': <b class="num">'+n+'/'+u.max+'</b></span>'+(n>=u.max?'<span>Máximo</span>':btn('up',k,'+1 por '+R$(c),G.money<c,'sm'))};
+const WHY={run:'Em produção',noin:'Aguardando peças',nomat:'Falta material',down:'Afastado (acidente)'};
+function lineSec(k,n,t,inLbl,outLbl){
+ const tiles=G[k].map((s,i)=>'<div class="mc '+(s.p?'run':s.why==='nomat'?'nomat':'')+'"><div class="st"><i class="led"></i>'+(s.p?PR[s.p].n+' · '+sh(s.n)+' pç por ciclo':WHY[s.why||'noin'])+'</div><div class="bar"><i style="width:'+(s.p?100*s.u:0)+'%"></i></div></div>').join('');
+ const d=SEC[k];
+ return sec(n,t,'',tiles+'<div class="mut">'+inLbl+'</div>'+chips(G[d.inn])+'<div class="mut">'+outLbl+'</div>'+chips(G[d.out]),upf(k,'Estações'))}
+function render(){
+ if(!G)return;
+ $('k-money').textContent=R$(G.money);$('k-money').className='num'+(G.money<0?' low':'');
+ $('k-day').textContent='Dia '+G.day;const mm=Math.floor(360+(G.t%DAY)*8.333);$('k-clock').textContent=String(Math.floor(mm/60)).padStart(2,'0')+':'+String(mm%60).padStart(2,'0');
+ $('k-rep').textContent=Math.round(G.rep);const gp=Math.max(0,Math.min(100,G.money/GOAL*100));$('k-goal').textContent=Math.round(gp)+'%';$('k-bar').style.width=gp+'%';
+ $('snd').setAttribute('aria-pressed',String(SND));$('mus').setAttribute('aria-pressed',String(musicOn));
+ [0,1,3,8].forEach(s=>$('sp'+s).setAttribute('aria-pressed',String(G.speed===s)));
+ let h='';
+ h+=sec('01','Recebimento','DOCAS '+G.docks,matList().map(k=>[k,MAT[k]]).map(([k,m])=>'<div class="row"><span>'+m.n+' <b class="num'+(G.raw[k]<lowTh(k)?' low':'')+'">'+G.raw[k]+'</b></span>'+btn('buy',k,'+'+m.lot+' · '+R$(m.lot*mp(k)),G.money<m.lot*mp(k),'sm')+'</div>').join('')+
+  '<div class="row"><span class="mut">Fornecedor</span>'+btn('sup',0,SUP[G.sup].n,0,'sm')+'</div><div class="mut">A caminho: '+G.dl.length+' · Fila na doca: '+G.queue.length+' · Descarregando: '+G.unl.length+'</div>',upf('dock','Docas'));
+ h+=sec('02','Injeção plástica','CARCAÇAS',G.inj.map((m,i)=>{const p=m.cur&&PR[m.cur];
+  const lab=m.broken?(m.rep>0?'Em reparo':'Quebrada'):m.setup>0?'Troca de molde':m.st==='nomat'?injWhy(m):m.st==='idle'?'Sem pedido':p.n+' · '+sh(m.prog)+' pç por ciclo';
+  return '<div class="mc '+(m.broken?'broken':m.st==='run'?'run':m.st==='setup'||m.st==='nomat'?'setup':'')+'"><div class="row"><b class="mcn">'+ic('inj',24)+'Injetora '+(i+1)+'</b>'+btn('cycle',i,'Molde: '+(m.p==='auto'?'automático':PR[m.p].n),0,'sm')+'</div><div class="st"><i class="led"></i>'+lab+(m.broken&&!m.rep?' '+btn('repair',i,'Chamar manutenção · R$ 4.500',G.money<150,'sm'):'')+'</div><div class="bar"><i style="width:'+(m.st==='run'?100:0)+'%"></i></div></div>'}).join('')+'<div class="mut">Carcaças prontas</div>'+chips(G.hous),upf('inj','Injetoras'));
+ h+=lineSec('col','03','Colagem','Carcaças','Espelhos colados');
+ h+=lineSec('mon','04','Montagem','Espelhos colados','Retrovisores montados');
+ h+=lineSec('qa','05','Qualidade','Montados','Aprovados');
+ h+=lineSec('emb','06','Embalagem','Aprovados','Embalados');
+ h+=sec('07','Expedição','PRODUTO ACABADO','<div class="mut">Embalados e prontos para despacho</div>'+chips(G.pack)+'<div class="mut">Use "Despachar" na carteira de pedidos.</div>','<span>Peças enviadas: <b class="num">'+G.sent+'</b></span>');
+ h+=sec('08','Logística','FROTA',G.trucks.map((tk,i)=>'<div class="mc '+(tk.busy?'run':'')+'"><div class="st"><i class="led"></i>Caminhão '+(i+1)+': '+(tk.busy?'em rota, '+tm(tk.busy)+' · '+tk.ord.client:'livre na doca')+'</div></div>').join(''),upf('truck','Frota'));
+ h+=extraSecs();$('floor').innerHTML=h;drawPanes();
+ $('offers').innerHTML=G.offers.length?G.offers.map(o=>'<div class="ord"><h3>'+ic(o.p,26)+o.qty+' × '+PR[o.p].n+vl(o)+'</h3><div class="mut">'+o.client+' · prazo '+(o.win/DAY).toFixed(1)+' d · expira em '+tm(o.exp-G.t)+'</div><div class="row"><b class="num">'+R$(o.pay)+'</b><span>'+btn('accept',o.id,'Aceitar',0,'sm pri')+' '+btn('decline',o.id,'Recusar',0,'sm')+'</span></div></div>').join(''):'<span class="mut">Nenhuma proposta no momento.</span>';
+ const free=G.trucks.some(t=>t.busy===0);
+ $('orders').innerHTML=G.orders.length?G.orders.map(o=>{const left=o.due-G.t,have=Math.min(G.pack[o.p],o.qty);
+  return '<div class="ord"><h3>'+ic(o.p,26)+o.qty+' × '+PR[o.p].n+vl(o)+' · '+o.client+'</h3><div class="mut">'+(o.state==='transit'?'Em transporte':'Prazo: '+(left/DAY).toFixed(1)+' d')+' · prontos '+have+'/'+o.qty+'</div><div class="row"><b class="num">'+R$(o.pay)+'</b>'+(o.state==='open'?btn('ship',o.id,'Despachar',!(free&&canShip(o)),'sm pri'):'<span class="mut">a caminho</span>')+'</div></div>'}).join(''):'<span class="mut">Aceite uma proposta para começar a produzir.</span>';
+ $('log').innerHTML=G.log.map(l=>'<p>'+l+'</p>').join('')}
+const RES=[{id:'molde',n:'Troca rápida de molde',d:'A troca de molde cai de 3 para 1 minuto.',c:6000},{id:'cura',n:'Cura rápida da cola',d:'A colagem fica 1 minuto mais rápida por peça.',c:7000},{id:'spc',n:'Controle estatístico (CEP)',d:'Reduz o refugo na inspeção em 3 pontos percentuais.',c:8000},{id:'prev',n:'Manutenção preditiva',d:'As quebras de injetora ficam 4 vezes mais raras.',c:9000},{id:'contrato',n:'Contrato anual de insumos',d:'Todos os materiais ficam 15% mais baratos.',c:12000},{id:'auto',n:'Embalagem automática',d:'A embalagem passa a levar 1 minuto por peça.',c:10000},{id:'kanban',n:'Kanban com fornecedores',d:'Os materiais chegam 5 minutos mais cedo.',c:5000}];
+const M=[{t:'Aceite sua primeira proposta',b:300,ok:()=>G.orders.length+G.delivered>0},{t:'Receba uma compra de material',b:200,ok:()=>G.recv>0},{t:'Produza 600 carcaças',b:300,ok:()=>G.prod>=600},{t:'Entregue seu primeiro pedido',b:500,ok:()=>G.delivered>0},{t:'Conclua uma pesquisa de P&D',b:500,ok:()=>Object.keys(G.res).length>0},{t:'Envie 3.000 retrovisores',b:1000,ok:()=>G.sent>=3000},{t:'Entregue para 5 montadoras',b:1500,ok:()=>Object.keys(G.brand).length>=5},{t:'Chegue a R$ 750.000 em caixa',b:2000,ok:()=>G.money>=25000}];
+const mp=k=>MAT[k].p*(G.res.contrato?.85:1)*(G.ger.sc?.92:1)*(G.me&&(G.me.k==='sc'||G.me.k==='rec')?1-G.me.b/2:1)*SUP[G.sup].pm*(G.fx.chip&&k==='kit'?2:1);
+const brk=()=>[.002,.003,.005][G.diff]*(G.res.prev?.25:1)*(G.me&&G.me.k==='man'?1-G.me.b*3:1);
+const scrapRate=()=>Math.max(.01,.08-(G.res.spc?.03:0)-.01*(G.qa.length-1)-(G.ger.qual?.02:0)-.01*G.mult+(G.moral<40?.03:0)-(G.me&&(G.me.k==='qa'||G.me.k==='fer')?G.me.b/2:0)+(G.fx.scrapUp>G.t?.08:0)+Math.max(0,(Math.max(G.mold.car,G.mold.bus,G.mold.truck)-70)/300));
+function stT(k,p){return k==='qa'?1:k==='emb'?(G.res.auto?1:PR[p].emb):k==='col'?Math.max(1,PR[p].col-(G.res.cura?1:0))+(G.fx.colSlow>G.t?1:0):PR[p][k]}
+const spend=c=>{G.money-=c;G.dayExp+=c};const earn=a=>{G.money+=a;G.dayRev+=a};
+function checkM(){M.forEach((m,i)=>{if(!G.mdone[i]&&m.ok()){G.mdone[i]=1;earn(m.b);say('Missão cumprida: '+m.t+' (+'+R$(m.b)+').')}})}
+
+/* ===== Planta animada em canvas ===== */
+const CV=$('cv'),cx=CV.getContext('2d'),DPR=Math.min(2,window.devicePixelRatio||1);
+CV.width=1200*DPR;CV.height=840*DPR;
+const C={},PC={car:'#4aa3df',bus:'#f0b323',truck:'#e0673a',M:'#b08968',R:'#9aa5ae',F:'#c9c2b3'},MC={resina:'#f0b323',vidro:'#4aa3df',kit:'#4cc38a',cola:'#9aa5ae',caixa:'#b08968',espuma:'#d8c3a5'};
+const ZN=['Recebimento','Injeção plástica','Colagem','Montagem','Qualidade','Embalagem','Expedição','Logística','Mantas','Moinho','Ferramentaria','Apoio e segurança'];
+const ZP=[[10,10],[310,10],[610,10],[910,10],[910,290],[610,290],[310,290],[10,290],[10,570],[310,570],[610,570],[910,570]];
+let hits=[],hov=-1,shipAt=-9,frame=0;
+function theme(){const cs=getComputedStyle(document.documentElement);['bg','panel','panel2','line','fg','mute','accent','ok','bad','info'].forEach(k=>C[k]=cs.getPropertyValue('--'+k).trim())}
+const rect=(x,y,w,h,f,s)=>{cx.fillStyle=f;cx.fillRect(x,y,w,h);if(s){cx.strokeStyle=s;cx.lineWidth=1.5;cx.strokeRect(x+.5,y+.5,w-1,h-1)}};
+const txt=(s,x,y,sz,col,al)=>{cx.font='600 '+sz+'px "IBM Plex Mono",monospace';cx.fillStyle=col;cx.textAlign=al||'left';cx.fillText(s,x,y)};
+const dot=(x,y,r,f)=>{cx.fillStyle=f;cx.beginPath();cx.arc(x,y,r,0,7);cx.fill()};
+const stCol=s=>s==='run'?C.ok:s==='broken'?C.bad:s==='idle'?C.mute:C.accent;
+function pile(x,y,o,lab){KEYS.forEach((p,i)=>{const n=o[p],bx=x+i*26;for(let k=0;k<Math.min(Math.ceil(n/100),6);k++)rect(bx,y-k*5,20,4,PC[p]);txt(sh(n),bx+10,y+14,10,C.fg,'center')});if(lab)txt(lab,x,y-40,10,C.mute)}
+function belt(x,y,w,on,t){rect(x,y,w,8,C.panel2,C.line);if(on){cx.save();cx.strokeStyle=C.accent;cx.lineWidth=2;cx.setLineDash([6,8]);cx.lineDashOffset=-t*30;cx.beginPath();cx.moveTo(x+2,y+4);cx.lineTo(x+w-2,y+4);cx.stroke();cx.restore()}}
+function truckS(x,y,col,t,shake){const sh=shake?Math.sin(t*30)*.6:0;rect(x,y+sh,34,16,col,C.line);rect(x+34,y+4+sh,13,12,C.fg);rect(x+38,y+6+sh,6,5,C.info);dot(x+9,y+17,4,'#222');dot(x+38,y+17,4,'#222')}
+function worker(x,y,t,on,col){const b=on?Math.sin(t*7+x)*2:0;dot(x,y-9+b,5,'#e9c9a0');rect(x-5,y-4+b,10,12,col||C.info);if(on)rect(x+4,y-2+b,7,3,col||C.info)}
+function station(k,s,x,y,t){rect(x+4,y+5,74,46,'rgba(0,0,0,.14)');const on=!!s.p;if(s.down>0){rect(x,y,74,46,C.panel2,C.bad);worker(x+22,y+30,t,false,C.bad);txt('+',x+56,y+30,26,C.bad,'center');return}rect(x,y,74,46,C.panel2,C.line);rect(x+4,y+30,66,10,C.line);
+ if(on){worker(x+22,y+22,t,true,PC[s.p]);rect(x+40,y+26,18,10,PC[s.p]);cx.strokeStyle=C.ok;cx.lineWidth=2;cx.strokeRect(x+1,y+1,72,44)}
+ else{worker(x+22,y+22,t,false,C.mute)}
+ dot(x+66,y+8,4,on?C.ok:s.why==='nomat'?C.accent:C.mute);if(on)txt(PR[s.p]?PR[s.p].s:s.p,x+66,y+27,12,C.fg,'center')}
+function drawZone0(i,t){const[ox,oy]=ZP[i];rect(ox,oy,280,260,C.panel,C.line);rect(ox,oy,280,30,C.panel2);txt((i+1)+' · '+ZN[i].toUpperCase(),ox+12,oy+20,13,C.fg);
+ if(i===0){const road=oy+96;rect(ox+8,road,264,22,C.panel2);cx.save();cx.strokeStyle=C.mute;cx.setLineDash([10,10]);cx.beginPath();cx.moveTo(ox+8,road+11);cx.lineTo(ox+272,road+11);cx.stroke();cx.restore();
+  for(let d=0;d<G.docks;d++){const bx=ox+14+d*90,on=d<G.unl.length;rect(bx,oy+40,80,44,C.panel2,on?C.ok:C.line);txt('DOCA '+(d+1),bx+40,oy+58,11,C.mute,'center');if(on){truckS(bx+14,oy+64,C.accent,t,true);txt('conferindo',bx+40,oy+80,10,C.ok,'center')}}
+  if(G.dl.length){const me=Math.min(...G.dl.map(d=>d.eta)),px=ox+280-Math.max(0,5-me)*45;if(me<=5)truckS(px,road+3,C.info,t,false)}
+  let j=0;for(const k of matList()){const bx=ox+12+j*(PW()+8),n=Math.min(8,Math.ceil(G.raw[k]/450));for(let q=0;q<n;q++)rect(bx,oy+200-q*13,PW(),11,MC[k],C.line);rect(bx-2,oy+206,PW()+4,5,C.line);txt(k.slice(0,3).toUpperCase(),bx+PW()/2,oy+224,8,C.mute,'center');txt(sh(G.raw[k]),bx+PW()/2,oy+236,8,G.raw[k]<lowTh(k)?C.bad:C.fg,'center');j++}}
+ if(i===1){G.inj.forEach((m,q)=>{const x=ox+14+(q%3)*88,y=oy+42+Math.floor(q/3)*82,on=m.st==='run';
+   rect(x+4,y+34,80,28,'rgba(0,0,0,.14)');rect(x,y+30,80,28,C.panel2,C.line);const px=on?Math.abs(Math.sin(t*3.2+q))*14:2;rect(x+44-px,y+20,14,38,C.mute,C.line);rect(x+58,y+24,18,30,C.line);
+   cx.fillStyle=C.line;cx.beginPath();cx.moveTo(x+6,y+30);cx.lineTo(x+14,y+8);cx.lineTo(x+30,y+8);cx.lineTo(x+38,y+30);cx.fill();
+   rect(x+10,y+30,24,4,m.cur?PC[m.cur]:C.mute);dot(x+72,y+14,5,stCol(m.broken?'broken':m.st==='nomat'||m.st==='setup'?'w':m.st));
+   txt(m.cur?PR[m.cur].s:'–',x+22,y+52,12,C.fg,'center');txt('I'+(q+1),x+40,y+70,10,C.mute,'center');
+   if(m.broken)txt('QUEBRADA',x+40,y+4,10,C.bad,'center');
+   if(m.prog&&m.cur)rect(x,y+72,80*m.prog/PR[m.cur].inj,3,C.ok);hits.push({x:ox+14+(q%3)*88,y,w:80,h:60,i:q})});
+  pile(ox+20,oy+232,G.hous,'');txt('carcaças prontas',ox+140,oy+248,10,C.mute)}
+ if(i>=2&&i<=5){const k=['col','mon','qa','emb'][i-2],d=SEC[k],on=G[k].some(s=>s.p);
+  G[k].forEach((s,q)=>station(k,s,ox+14+(q%3)*84,oy+44+Math.floor(q/3)*58,t));
+  belt(ox+12,oy+176,256,on,t);txt('entrada',ox+14,oy+198,10,C.mute);pile(ox+14,oy+226,G[d.inn]);txt('saída',ox+150,oy+198,10,C.mute);pile(ox+150,oy+226,G[d.out])}
+ if(i===6){KEYS.forEach((p,q)=>{const bx=ox+24+q*84,n=Math.min(14,Math.ceil(G.pack[p]/60));rect(bx-4,oy+218,76,5,C.line);for(let r=0;r<n;r++)rect(bx+(r%2)*34,oy+210-Math.floor(r/2)*14,32,12,PC[p],C.panel);txt(PR[p].n+' '+sh(G.pack[p]),bx+34,oy+240,11,C.fg,'center')});
+  const a=t-shipAt;if(a<2.2){const fx=ox+30+Math.min(1,a/2)*190;rect(fx,oy+60,20,12,C.accent);rect(fx-8,oy+66,10,8,C.fg);dot(fx+2,oy+78,3,'#222');dot(fx+16,oy+78,3,'#222');rect(fx+20,oy+54,6,22,C.mute)}}
+ if(i===7){const road=oy+200;rect(ox+8,road,264,24,C.panel2);cx.save();cx.strokeStyle=C.mute;cx.setLineDash([10,10]);cx.beginPath();cx.moveTo(ox+8,road+12);cx.lineTo(ox+272,road+12);cx.stroke();cx.restore();
+  G.trucks.forEach((tk,q)=>{const bx=ox+14+(q%3)*88,by=oy+44+Math.floor(q/3)*60;rect(bx,by,80,44,C.panel2,C.line);txt('VAGA '+(q+1),bx+40,by+12,10,C.mute,'center');
+   if(!tk.busy)truckS(bx+14,by+22,C.info,t,false);else{const f=1-tk.busy/(tk.trip||12),px=ox+14+f*210;truckS(px,road+3,C.accent,t,true);txt(tm(tk.busy),px+24,road-4,10,C.fg,'center');txt('em rota',bx+40,by+30,10,C.accent,'center')}})}}
+function arrows(t){cx.save();cx.strokeStyle=C.accent;cx.lineWidth=3;cx.setLineDash([7,7]);cx.lineDashOffset=-t*30;
+ const L=(a,b,c,d)=>{cx.beginPath();cx.moveTo(a,b);cx.lineTo(c,d);cx.stroke()};
+ L(290,130,310,130);L(590,130,610,130);L(890,130,910,130);L(1050,270,1050,290);L(910,420,890,420);L(610,420,590,420);L(310,420,290,420);cx.restore()}
+function loop(ms){requestAnimationFrame(loop);if(G.tab!=='fab'||document.hidden)return;if(frame++%90===0)theme();
+ const t=ms/1000;cx.setTransform(DPR,0,0,DPR,0,0);rect(0,0,1200,840,C.bg);hits=[];for(let i=0;i<12;i++)drawZone(i,t);arrows(t);effects(t);
+ if(hov>=0){const m=G.inj[hov],h=hits.find(x=>x.i===hov);if(h){const s='Injetora '+(hov+1)+' · molde '+(m.p==='auto'?'automático':PR[m.p].n)+(m.broken?' · clique para reparar':' · clique para trocar'),w=cx.measureText(s).width+20;rect(Math.min(h.x,1200-w-4),h.y+64,w+10,22,C.fg);txt(s,Math.min(h.x,1200-w-4)+8,h.y+79,11,C.bg)}}}
+function cvPos(e){const r=CV.getBoundingClientRect();return[(e.clientX-r.left)*1200/r.width,(e.clientY-r.top)*840/r.height]}
+CV.addEventListener('pointermove',e=>{const[x,y]=cvPos(e),h=hits.find(h=>x>=h.x&&x<=h.x+h.w&&y>=h.y&&y<=h.y+h.h);hov=h?h.i:-1;CV.style.cursor=h?'pointer':'default'});
+CV.addEventListener('pointerleave',()=>{hov=-1});
+CV.addEventListener('pointerdown',e=>{const[x,y]=cvPos(e),h=hits.find(h=>x>=h.x&&x<=h.x+h.w&&y>=h.y&&y<=h.y+h.h);if(h){const m=G.inj[h.i];A(m.broken&&!m.rep?'repair':'cycle',h.i)}});
+
+/* ===== Abas, finanças, P&D, clientes, missões ===== */
+const TABS=[['fab','Fábrica'],['est','Estoque'],['qua','Qualidade'],['mod','Modelos'],['pes','Pessoas'],['nfb','Projeto NFB'],['fin','Finanças'],['res','P&D'],['cli','Clientes'],['mar','Linhas por marca'],['ach','Conquistas']];
+function finChart(H,fn){const W=640,Ht=190,L=46,B=24,mx=fn.max,mn=fn.min||0,y=v=>Ht-B-((v-mn)/(mx-mn))*(Ht-B-10);let s='<svg viewBox="0 0 '+W+' '+Ht+'" role="img" aria-label="'+fn.label+'">';
+ for(let i=0;i<=4;i++){const v=mn+(mx-mn)*i/4;s+='<line x1="'+L+'" x2="'+W+'" y1="'+y(v)+'" y2="'+y(v)+'" class="gr"/><text x="'+(L-6)+'" y="'+(y(v)+4)+'" text-anchor="end" class="ax">'+(fn.fmt||fm)(v)+'</text>'}
+ return s+fn.body(y,(W-L)/Math.max(H.length,1),L,Ht,B)+'</svg>'}
+function finPane(){
+ const H=G.hist.slice(-16),emp='<span class="mut">Os gráficos aparecem depois do primeiro dia fechado.</span>';
+ const mx=Math.max(1000,...H.map(h=>Math.max(h.r,h.e)));
+ const bars=H.length?finChart(H,{label:'Receita e despesa por dia',max:mx,body:(y,bw,L,Ht,B)=>H.map((h,i)=>{const x=L+i*bw;return '<rect x="'+(x+bw*.12)+'" y="'+y(h.r)+'" width="'+bw*.36+'" height="'+(Ht-B-y(h.r))+'" class="br"/><rect x="'+(x+bw*.52)+'" y="'+y(h.e)+'" width="'+bw*.36+'" height="'+(Ht-B-y(h.e))+'" class="be"/><text x="'+(x+bw/2)+'" y="'+(Ht-8)+'" text-anchor="middle" class="ax">'+h.d+'</text>'}).join('')}):emp;
+ const mn=Math.min(0,...H.map(h=>h.m)),mxm=Math.max(GOAL*1.05,...H.map(h=>h.m));
+ const line=H.length?finChart(H,{label:'Caixa por dia',max:mxm,min:mn,body:(y,bw,L)=>'<line x1="'+L+'" x2="640" y1="'+y(GOAL)+'" y2="'+y(GOAL)+'" class="gl2"/><text x="640" y="'+(y(GOAL)-4)+'" text-anchor="end" class="ax">meta</text><polyline class="ln2" points="'+H.map((h,i)=>(L+i*bw+bw/2)+','+y(h.m)).join(' ')+'"/>'}):emp;
+ const k=(v,l,c)=>'<div class="kpi"><b class="num '+(c||'')+'">'+v+'</b><span>'+l+'</span></div>';
+ return '<div class="box"><h2>Indicadores</h2><div class="kp">'+k(R$(G.dayRev),'Receita hoje')+k(R$(G.dayExp),'Despesa hoje')+k((scrapRate()*100).toFixed(1)+'%','Taxa de refugo')+k(G.scrap,'Peças refugadas')+k(G.sent,'Peças enviadas')+k(G.delivered,'Pedidos entregues')+k(Math.round(G.rep),'Reputação')+'</div></div>'+
+ '<div class="box"><h2>Receita e despesa por dia</h2><div class="svgc">'+bars+'<div class="mut"><span class="good">■</span> receita &nbsp; <span class="low">■</span> despesa (R$)</div></div></div>'+
+ '<div class="box"><h2>Caixa por dia</h2><div class="svgc">'+line+'</div></div>'}
+function resPane(){return '<div class="grid2">'+RES.map(r=>{const d=G.res[r.id];return '<div class="ord"><h3>'+r.n+'</h3><div class="mut">'+r.d+'</div><div class="row"><b class="num">'+R$(r.c)+'</b>'+(d?'<span class="good">Concluído</span>':btn('res',r.id,'Investir',G.money<r.c,'sm pri'))+'</div></div>'}).join('')+'</div>'}
+function cliPane(){const all=ALLCLI().concat(['VWCO · Projeto NFB']);const PF={p:'Premium',v:'Volume',n:'Padrão'};
+ return '<div class="box"><h2>Relacionamento com as montadoras</h2><div class="tw"><table><thead><tr><th>Cliente</th><th>Peças entregues</th><th>Faturamento</th><th>Atrasos</th><th>Bônus de preço</th><th>Perfil</th></tr></thead><tbody>'+all.map(n=>{const b=G.brand[n]||{u:0,rev:0,late:0};return '<tr><td>'+n+'</td><td class="num">'+b.u+'</td><td class="num">'+R$(b.rev)+'</td><td class="num">'+b.late+'</td><td class="num">+'+(Math.min(.15,b.u/18000)*100).toFixed(1)+'%</td><td>'+PF[tierOf(n)]+'</td></tr>'}).join('')+'</tbody></table></div></div>'}
+function drawPanes(){
+ if(!$('tabs').children.length)$('tabs').innerHTML=TABS.map(([k,n])=>'<button role="tab" data-act="tab" data-a="'+k+'">'+n+'</button>').join('');
+ [...$('tabs').children].forEach(b=>b.setAttribute('aria-selected',String(b.dataset.a===G.tab)));
+ TABS.forEach(([k])=>$('pane-'+k).hidden=G.tab!==k);
+ if(G.tab==='fin')$('pane-fin').innerHTML=finPane();else if(G.tab==='res')$('pane-res').innerHTML=resPane();else if(G.tab==='cli')$('pane-cli').innerHTML=cliPane();
+ drawX();
+ $('miss').innerHTML=M.map((m,i)=>'<div class="row"><span class="'+(G.mdone[i]?'good':'')+'">'+(G.mdone[i]?'✔ ':'○ ')+m.t+'</span><span class="mut num">'+R$(m.b)+'</span></div>').join('')}
+/* ===== Mantas, moinho, ferramentaria, pessoas, ocorrências, visitas e Projeto NFB ===== */
+const mxMold=()=>Math.max(...KEYS.map(p=>G.mold[p]));
+const worstMold=()=>KEYS.slice().sort((a,b)=>G.mold[b]-G.mold[a])[0];
+const EV=[
+{k:'resina',t:'Resina contaminada',d:'O recebimento achou umidade no último lote de resina.',o:[{l:'Descartar 30 kg de resina',f:()=>{G.raw.resina=Math.max(0,G.raw.resina-30)}},{l:'Usar assim mesmo',f:()=>{G.fx.scrapUp=G.t+40}}],ig:()=>{G.fx.scrapUp=G.t+40}},
+{k:'sensor',t:'Sensor de cola desregulado',d:'A dosadora da colagem está errando a quantidade de adesivo.',o:[{l:'Chamar a manutenção · R$ 9.000',c:300,f:()=>{}},{l:'Seguir com ajuste manual',f:()=>{G.fx.colSlow=G.t+30}}],ig:()=>{G.fx.colSlow=G.t+30}},
+{k:'energia',t:'Queda de energia na linha',d:'O disjuntor geral desarmou na injeção.',o:[{l:'Acionar o gerador · R$ 12.000',c:400,f:()=>{}},{l:'Aguardar a concessionária',f:()=>{G.fx.blackout=G.t+8}}],ig:()=>{G.fx.blackout=G.t+8}},
+{k:'cliente',t:'Reclamação de cliente',d:'Uma montadora reportou retrovisores riscados no último lote.',o:[{l:'Abrir relatório 8D · R$ 15.000',c:500,f:()=>{G.rep=Math.min(100,G.rep+2)}},{l:'Ignorar',f:()=>{G.rep=Math.max(0,G.rep-4)}}],ig:()=>{G.rep=Math.max(0,G.rep-6)}},
+{k:'forn',t:'Atraso de fornecedor',d:'O transportador avisou que as cargas de material vão atrasar.',o:[{l:'Pagar frete expresso · R$ 10.500',c:350,f:()=>{}},{l:'Aguardar',f:()=>{G.dl.forEach(d=>d.eta+=8)}}],ig:()=>{G.dl.forEach(d=>d.eta+=10)}},
+{k:'molde',t:'Molde com rebarba',d:'A ferramentaria encontrou desgaste anormal em um molde.',o:[{l:'Retificar o molde · R$ 18.000',c:600,f:()=>{G.mold[worstMold()]=0}},{l:'Produzir assim mesmo',f:()=>{G.mold[worstMold()]=Math.min(99,G.mold[worstMold()]+15)}}],ig:()=>{G.mold[worstMold()]=Math.min(99,G.mold[worstMold()]+20)}}];
+const evD=k=>EV.find(e=>e.k===k),AUTO={sensor:'man',energia:'man',molde:'man',cliente:'qual',resina:'qual',forn:'sc'};
+function resolveEv(id,o){const i=G.ev.findIndex(x=>x.id===id);if(i<0)return;const e=G.ev[i],d=evD(e.k),op=d.o[o];if(!op||(op.c&&G.money<op.c))return;if(op.c)spend(op.c);op.f();G.ev.splice(i,1);say('Ocorrência resolvida: '+d.t+' ('+op.l.split(' · ')[0]+').')}
+const staffCost=()=>(G.shifts-1)*(300+60*(G.inj.length+G.col.length+G.mon.length+G.qa.length+G.emb.length))+(G.ot?400:0)+250*Object.values(G.ger).reduce((a,b)=>a+b,0)+60*G.brig+120*G.mult+150*G.amb+120*G.ref+150*(G.volv||[]).length+(G.adm?250:0);
+const NFB=[{n:'Engenharia e design do retrovisor',need:120,cost:8000,d:'A engenharia valida os desenhos do retrovisor para a nova geração de cabines da VWCO.'},
+{n:'Ferramental do molde',need:150,cost:6000,d:'Ocupa uma ferramentaria dedicada. Com apenas uma, a manutenção dos moldes da fábrica para.'},
+{n:'Protótipos e validação',need:60,cost:2000,deliver:50,d:'Consome 50 retrovisores de caminhão embalados, enviados aos testes da VWCO.'},
+{n:'Homologação PPAP',need:60,cost:3000,d:'Exige taxa de refugo abaixo de 6% e pelo menos 1 brigadista.',cond:()=>scrapRate()<.06&&G.brig>=1}];
+const ALLCLI=()=>[...new Set([].concat(CLI.car,CLI.bus,CLI.truck))];
+function visitScore(){const late=Object.values(G.brand).reduce((a,b)=>a+b.late,0),n=Math.max(1,G.delivered),pr=G.visit?G.visit.prep:0;
+ const it=[['Qualidade do produto',100-Math.min(100,Math.max(0,(scrapRate()-.01)*900))],['Segurança do trabalho',Math.min(100,G.brig*25+G.amb*25)],['Pontualidade nas entregas',Math.max(0,100-late/n*300)],['Organização e 5S',Math.min(100,G.moral+pr*20)],['Estado dos moldes',100-mxMold()],['Meio ambiente (moinho)',Math.max(0,100-G.reb/RB*72)],['Pessoas e treinamento',Math.min(100,30+G.mult*20+Object.values(G.ger).reduce((a,b)=>a+b,0)*10+G.ref*5)]];
+ return{it,total:it.reduce((a,b)=>a+b[1],0)/it.length}}
+function visitDone(){const v=G.visit,r=visitScore(),t=r.total;let msg;
+ if(t>=75){earn(3000);G.rep=Math.min(100,G.rep+5);const b=G.brand[v.cl]||(G.brand[v.cl]={u:0,late:0,rev:0});b.u+=3000;msg='Auditoria aprovada. A '+v.cl+' elogiou a fábrica: bônus de R$ 90.000, reputação +5 e preços melhores.'}
+ else if(t>=50){G.rep=Math.min(100,G.rep+1);msg='Auditoria aprovada com ressalvas. A '+v.cl+' pediu um plano de ação.'}
+ else{G.rep=Math.max(0,G.rep-6);msg='Auditoria reprovada. A '+v.cl+' reduziu o volume de compras por um tempo: reputação -6.'}
+ G.vlast=v.cl+' · '+Math.round(t)+' pontos';say('Visita da '+v.cl+': '+Math.round(t)+' pontos.');G.visit=null;G.nextVisit=G.t+ri(240,360);
+ pause();const m=$('modal');m.hidden=false;m.innerHTML='<div role="dialog" aria-modal="true"><h2>Visita da '+v.cl+'</h2><div class="tw"><table><tbody>'+r.it.map(x=>'<tr><td>'+x[0]+'</td><td class="num">'+Math.round(x[1])+'</td></tr>').join('')+'<tr><td><b>Total</b></td><td class="num"><b>'+Math.round(t)+'</b></td></tr></tbody></table></div><p>'+msg+'</p><button class="btn pri" data-act="go" autofocus>Voltar ao trabalho</button></div>'}
+function buyMat(k){const m=MAT[k],c=m.lot*mp(k);if(G.money<c)return;spend(c);G.dl.push({item:k,qty:m.lot,eta:Math.max(2,ri(SUP[G.sup].eta[0],SUP[G.sup].eta[1])+(Math.random()<SUP[G.sup].risk?10:0)-(G.res.kanban?5:0)-(G.ger.sc?3:0))});say('Compra automática: '+m.lot+' × '+m.n+'.')}
+function extra(){
+ G.mnt.forEach(s=>{if(s.down>0){s.down--;s.p=null;return}const n=Math.min(12,G.raw.espuma,Math.floor((2700-G.raw.manta)/3));if(n>0){G.raw.espuma-=n;G.raw.manta+=3*n;s.p='M'}else s.p=null});
+ G.moi.forEach(s=>{const n=Math.min(40,G.reb);if(n>=2){G.reb-=n;G.raw.resina+=Math.floor(n/2);G.recycled+=Math.floor(n/2);s.p='R'}else s.p=null});
+ const free=Math.max(0,G.fer.length-(G.nfb.run&&G.nfb.ph===1?1:0)),w=worstMold();G.fer.forEach(s=>s.p=null);
+ if(G.mold[w]>30&&free>0){G.mold[w]=Math.max(0,G.mold[w]-free*3);G.fer.slice(0,free).forEach(s=>s.p='F')}
+ const ex=(G.col.length+G.mon.length+G.qa.length+G.emb.length+G.inj.length+G.mnt.length)/10;
+ if(Math.random()<.0025*ex*(1+.5*(G.shifts-1))*(G.ot?1.3:1)*(G.moral<40?2:1)*(1-.15*G.mult)*(G.amb?.9:1)){const arr=[G.col,G.mon,G.qa,G.emb,G.mnt][ri(0,4)],s=arr[ri(0,arr.length-1)];s.down=G.amb?3:7;G.fx.amb=G.t+8;sfx('bad');spend(G.amb?200:600);G.acc++;G.moral=Math.max(0,G.moral-(G.amb?3:6));say('Acidente de trabalho: colaborador afastado'+(G.amb?' (atendido no ambulatório)':' sem atendimento no local')+'.')}
+ G.moral=Math.max(0,Math.min(100,G.moral+.02*G.ref+.01*G.mult-.015-.012*(G.shifts-1)-(G.ot?.01:0)));
+ if(Math.random()<.0008){const ok=Math.random()<Math.min(.95,.3+.22*G.brig+(G.fx.drill>G.t?.1:0));if(ok){spend(300);say('Princípio de incêndio controlado pela brigada de emergência (R$ 9.000).')}else{spend(6000);G.fx.blackout=G.t+12;G.fx.fire=G.t+12;sfx('siren');G.moral=Math.max(0,G.moral-10);say('Incêndio fora de controle: produção parada por cerca de 1h40 e R$ 180.000 em danos. Treine mais brigadistas.')}}
+ G.ev=G.ev.filter(x=>{const d=evD(x.k),a=AUTO[x.k];if(G.ger[a]&&(!d.o[0].c||G.money>=d.o[0].c)){if(d.o[0].c)spend(d.o[0].c);d.o[0].f();say('Gerente resolveu: '+d.t+'.');return false}if(x.exp<=G.t){d.ig();say('Ocorrência ignorada: '+d.t+'.');return false}return true});
+ if(G.ev.length<2&&Math.random()<1/45){const pool=EV.filter(x=>(x.k!=='greve'&&x.k!=='recall')||(x.k==='greve'&&G.moral<35)),e=pool[ri(0,pool.length-1)];if(!G.ev.some(x=>x.k===e.k)){G.ev.push({k:e.k,id:uid++,exp:G.t+14});say('Ocorrência na linha: '+e.t+'.')}}
+ if(G.ger.prod||G.auto.buy)matList().forEach(k=>{if(G.raw[k]<Math.min(900,MAT[k].lot/2)&&!G.dl.some(d=>d.item===k))buyMat(k)});
+ if(G.ger.man)G.inj.forEach((m,i)=>{if(m.broken&&!m.rep&&G.money>=150){spend(150);m.rep=4}});
+ if(G.ger.log||G.auto.ship)G.orders.filter(o=>o.state==='open'&&canShip(o)&&!(G.nfb.ph===2&&!G.nfb.run&&!G.nfb.done&&o.p==='truck'&&G.pack.truck-o.qty<50)).forEach(o=>{if(canShip(o)&&G.trucks.some(t=>t.busy===0)){const tk=G.trucks.find(t=>t.busy===0);shipTake(o);o.state='transit';tk.ord=o;tk.busy=tk.trip=9+ri(0,6)}});
+ if(!G.visit&&G.t>=G.nextVisit){G.visit={t:G.t+90,cl:ALLCLI()[ri(0,ALLCLI().length-1)],prep:0};say('Visita técnica agendada: '+G.visit.cl+' chega em 1,5 dia.')}
+ if(G.visit&&G.t>=G.visit.t)visitDone();
+ const n=G.nfb;if(n.run){const ph=NFB[n.ph];n.prog=Math.min(ph.need,n.prog+1);if(n.prog>=ph.need&&(!ph.cond||ph.cond())){n.run=false;n.prog=0;say('Projeto NFB: fase concluída ('+ph.n+').');n.ph++;if(n.ph>=NFB.length){n.done=true;n.contract=15;earn(12000);G.rep=Math.min(100,G.rep+10);say('Projeto NFB homologado pela VWCO! Contrato de fornecimento por 15 dias e bônus de R$ 360.000')}}}
+ if(n.contract>0&&G.t%DAY===1){n.contract--;G.orders.push({id:uid++,p:'truck',qty:200,pay:Math.round(200*PR.truck.price*1.35),client:'VWCO · Projeto NFB',win:120,state:'open',due:G.t+120});say('Novo pedido do Projeto NFB: 200 retrovisores de caminhão.')}}
+
+const GER={prod:['Gerente de produção','Compra os materiais sozinho quando o estoque cai abaixo de 30 e resolve atrasos de fornecedor.'],log:['Gerente de logística','Despacha os pedidos prontos assim que há caminhão livre.'],qual:['Gerente de qualidade','Reduz o refugo em 2 pontos e resolve reclamações de cliente e resina contaminada.'],cam:['Gerente de caminhões','Coordena a linha de caminhões: +15% de produção de peças de caminhão em todos os setores e preço 5% melhor nos pedidos.'],sc:['Supply chain','Negocia com fornecedores: materiais 8% mais baratos, cargas chegam mais cedo e resolve atrasos de fornecedor.'],aut:['Gerente de autos','Coordena a linha de carros: +15% de produção de peças de carro em todos os setores e preço 5% melhor nos pedidos.'],bus:['Gerente de ônibus','Coordena a linha de ônibus: +15% de produção de peças de ônibus em todos os setores e preço 5% melhor nos pedidos.'],man:['Gerente de manutenção','Conserta as injetoras que quebram e resolve falhas de sensor, energia e molde.']};
+const HI={brig:{max:4,c:n=>1500,get:()=>G.brig,set:()=>{G.brig++},nm:'brigadista treinado'},mult:{max:4,c:n=>3500,get:()=>G.mult,set:()=>{G.mult++},nm:'multiplicador'},amb:{max:2,c:n=>n?6000:4000,get:()=>G.amb,set:()=>{G.amb++},nm:'estrutura do ambulatório'},ref:{max:3,c:n=>3000*(n+1),get:()=>G.ref,set:()=>{G.ref++},nm:'melhoria do refeitório'}};
+function hire(k){if(k.startsWith('ger:')){const g=k.slice(4);if(!G.ger[g]&&G.money>=3000){spend(3000);G.ger[g]=1;say('Contratado: '+GER[g][0]+'.')}return}
+ const h=HI[k],n=h.get();if(n<h.max&&G.money>=h.c(n)){spend(h.c(n));h.set();say('Contratação: '+h.nm+'.')}}
+const injWhy=m=>G.fx.blackout>G.t?'Sem energia':G.reb>=RB?'Moinho cheio':(m.cur&&G.mold[m.cur]>=100)?'Molde desgastado':'Falta resina';
+const pbar=(v,bad)=>'<div class="bar"><i style="width:'+Math.max(0,Math.min(100,v))+'%;background:'+(bad?'var(--bad)':'var(--accent)')+'"></i></div>';
+function extraSecs(){
+ const tiles=(k,lab)=>G[k].map(s=>'<div class="mc '+(s.p?'run':'')+'"><div class="st"><i class="led"></i>'+(s.down>0?'Afastado (acidente)':s.p?lab:'Ocioso')+'</div></div>').join('');
+ let h=sec('09','Mantas de proteção','EMBALAGEM',tiles('mnt','Cortando manta')+'<div class="row"><span>Espuma <b class="num'+(G.raw.espuma<600?' low':'')+'">'+G.raw.espuma+'</b></span>'+btn('buy','espuma','+60 · '+R$(60*mp('espuma')),G.money<60*mp('espuma'),'sm')+'</div><div class="row"><span>Mantas prontas <b class="num'+(G.raw.manta<300?' low':'')+'">'+G.raw.manta+'</b></span><span class="mut">1 por embalagem</span></div>',upf('mnt','Estações'));
+ h+=sec('10','Moinho','RECICLAGEM',tiles('moi','Moendo rebarba')+'<div class="mut">Rebarba acumulada</div>'+pbar(G.reb/RB*100,G.reb>=RB*.75)+'<div class="row"><span class="num">'+sh(G.reb)+'/'+sh(RB)+'</span><span class="mut">Reciclado: '+G.recycled+' kg</span></div><div class="mut">Com a rebarba cheia as injetoras param.</div>',upf('moi','Moinhos'));
+ h+=sec('11','Ferramentaria','MOLDES',tiles('fer','Retificando molde')+KEYS.map(p=>'<div class="row"><span>Molde '+PR[p].n+'</span><b class="num'+(G.mold[p]>=70?' low':'')+'">'+Math.round(G.mold[p])+'%</b></div>'+pbar(G.mold[p],G.mold[p]>=70)).join('')+(G.nfb.run&&G.nfb.ph===1?'<div class="mut good">O Projeto NFB ocupa um ferramenteiro.</div>':''),upf('fer','Ferramenteiros'));
+ return h+sec('12','Apoio e segurança','PESSOAS','<div class="row"><span>Moral da equipe</span><b class="num">'+Math.round(G.moral)+'</b></div>'+pbar(G.moral,G.moral<40)+'<div class="row"><span>Ambulatório</span><b>'+['Sem estrutura','Enfermaria','Médico do trabalho'][G.amb]+'</b></div><div class="row"><span>Refeitório</span><b class="num">nível '+G.ref+'/3</b></div><div class="row"><span>Brigadistas</span><b class="num">'+G.brig+'/4</b></div><div class="row"><span>Multiplicadores</span><b class="num">'+G.mult+'/4</b></div>','<span>Acidentes: <b class="num">'+G.acc+'</b></span>'+btn('tab','pes','Gerir pessoas',0,'sm'))}
+function pesPane(){
+ const card=(t,d,n,max,c,k,lab)=>'<div class="ord"><h3>'+t+'</h3><div class="mut">'+d+'</div><div class="row"><span class="num">'+n+'/'+max+'</span>'+(n>=max?'<span class="good">Completo</span>':btn('hire',k,(lab||'Contratar')+' · '+R$(c),G.money<c,'sm pri'))+'</div></div>';
+ return '<div class="box"><h2>Moral e segurança</h2><div><div class="row"><span>Moral da equipe</span><b class="num">'+Math.round(G.moral)+'</b></div>'+pbar(G.moral,G.moral<40)+'<div class="mut">Moral abaixo de 40 dobra os acidentes e aumenta o refugo. O refeitório e os multiplicadores sobem a moral.</div><div class="row"><span>Acidentes de trabalho</span><b class="num">'+G.acc+'</b></div><div>'+btn('drill',0,'Simulado de emergência · R$ 24.000',G.money<800,'sm')+'</div></div></div>'+
+ '<div class="grid2">'+card('Brigada de emergência','Cada brigadista aumenta a chance de controlar um princípio de incêndio.',G.brig,4,1500,'brig','Treinar')+card('Multiplicadores','Funcionário treinado que repassa o padrão de trabalho: menos refugo, menos acidentes e mais moral.',G.mult,4,3500,'mult','Formar')+card('Ambulatório','Nível 1 enfermaria, nível 2 médico do trabalho. Acidentes custam menos e afastam por menos tempo.',G.amb,2,HI.amb.c(G.amb),'amb','Montar')+card('Refeitório','Cada nível sobe a moral da equipe aos poucos.',G.ref,3,HI.ref.c(G.ref),'ref','Melhorar')+'</div>'+
+ '<div class="box"><h2>Gerência</h2><div class="grid2">'+Object.entries(GER).map(([k,g])=>'<div class="ord"><h3>'+g[0]+'</h3><div class="mut">'+g[1]+'</div><div class="row"><span class="mut">R$ 7.500 por dia</span>'+(G.ger[k]?'<span class="good">Contratado</span>':btn('hire','ger:'+k,'Contratar · R$ 90.000',G.money<3000,'sm pri'))+'</div></div>').join('')+'</div></div>'}
+function nfbPane(){const n=G.nfb;
+ const ph=NFB.map((p,i)=>{const cur=i===n.ph&&!n.done,done=n.done||i<n.ph,blk=cur&&n.run&&n.prog>=p.need&&p.cond&&!p.cond();
+  return '<div class="ord"><h3>Fase '+(i+1)+' · '+p.n+'</h3><div class="mut">'+p.d+'</div>'+(cur&&n.run?pbar(100*n.prog/p.need):'')+'<div class="row"><span class="'+(done?'good':'mut')+'">'+(done?'Concluída':cur?(blk?'Bloqueada: confira refugo e brigada':n.run?'Em andamento · '+Math.round(100*n.prog/p.need)+'%':'Pronta para iniciar'):'Aguardando')+'</span>'+(cur&&!n.run?btn('nfb',0,'Iniciar · '+R$(p.cost),G.money<p.cost||(p.deliver&&G.pack.truck<p.deliver),'sm pri'):'')+'</div></div>'}).join('');
+ return '<div class="box"><h2>Projeto NFB · Novo Veículo Brasil</h2><div><p class="mut" style="margin:0">Projeto da Volkswagen Caminhões e Ônibus (VWCO), desenvolvido no Brasil para uma nova geração de veículos pesados. Conclua as quatro fases para homologar o retrovisor e receber um contrato com pedidos premium de caminhão.</p>'+(n.done?'<div class="good">Homologado. '+(n.contract>0?'Contrato ativo: '+n.contract+' dias restantes.':'Contrato concluído.')+'</div>':'')+'</div></div><div class="vs">'+ph+'</div>'}
+function advice(){const a=[],open=G.orders.filter(o=>o.state==='open');if(G.nfb.ph===2&&!G.nfb.run&&!G.nfb.done&&G.pack.truck<50)a.push('Projeto NFB, fase 3: reserve 50 retrovisores de caminhão embalados. Pause o despacho automático de caminhão.');const nm=open.find(o=>G.pack[o.p]>=o.qty&&!canShip(o));if(nm)a.push('Falta '+MAT[VAR[nm.v].mod].n.toLowerCase()+' para despachar o pedido de '+nm.client+'. Compre no Recebimento.');if(ppm()>6000)a.push('PPM alto ('+ppm()+'): há risco de recall. Melhore o laboratório de testes.');
+ if(G.inj.some(m=>m.broken&&!m.rep))a.push('Uma injetora quebrou. Clique nela na planta e chame a manutenção.');
+ const low=matList().filter(k=>G.raw[k]<lowTh(k)&&!G.dl.some(d=>d.item===k));if(low.length)a.push('Estoque baixo: '+low.map(k=>MAT[k].n.toLowerCase()).join(', ')+'. Faça um pedido de compra no Recebimento.');
+ if(!open.length&&G.offers.length)a.push('Você não tem pedidos. Aceite uma proposta para a fábrica produzir.');
+ const risk=open.find(o=>o.due-G.t<45&&G.pack[o.p]<o.qty);if(risk)a.push('O pedido de '+risk.client+' corre risco de atraso. Faltam '+sh(risk.qty-G.pack[risk.p])+' peças prontas.');
+ if(lunchLoss()>.05)a.push('Escala de almoço: as linhas perdem '+(lunchLoss()*100).toFixed(0)+'% da produção. Use Organizar escala na aba Pessoas.');if(open.some(o=>canShip(o))&&!G.auto.ship&&!G.ger.log)a.push('Há pedido pronto na carteira. Clique em Despachar.');
+ const tot=k=>KEYS.reduce((x,p)=>x+G[k][p],0),bn=[['hous','Colagem'],['glued','Montagem'],['asm','Qualidade'],['qok','Embalagem']].sort((x,y)=>tot(y[0])-tot(x[0]))[0];
+ if(tot(bn[0])>1500)a.push('Gargalo na '+bn[1]+': há '+sh(tot(bn[0]))+' peças esperando. Compre mais estações nesse setor.');
+ if(G.reb>=RB*.75)a.push('A rebarba está quase cheia. Compre outro moinho.');
+ if(mxMold()>=70)a.push('Molde com desgaste alto. Contrate outro ferramenteiro.');
+ if(G.moral<50)a.push('A moral está baixa. Melhore o refeitório ou forme multiplicadores.');
+ if(G.money<3000)a.push('Caixa baixo. Evite investimentos e despache os pedidos prontos.');
+ if(!a.length)a.push('Tudo certo. Invista em P&D ou em mais estações quando sobrar caixa.');
+ return a.slice(0,4)}
+function drawX(){
+ $('adv').innerHTML=advice().map(t=>'<div>• '+t+'</div>').join('');
+ $('auto').innerHTML=btn('auto','buy','Compra automática de insumos',0,'sm').replace('class="btn sm"','class="btn sm" aria-pressed="'+!!G.auto.buy+'"')+btn('auto','ship','Despacho automático',0,'sm').replace('class="btn sm"','class="btn sm" aria-pressed="'+!!G.auto.ship+'"');
+ $('evs').innerHTML=G.ev.length?G.ev.map(x=>{const d=evD(x.k);return '<div class="ord"><h3>'+d.t+'</h3><div class="mut">'+d.d+' Resolva em '+tm(x.exp-G.t)+'.</div><div class="chips">'+d.o.map((o,i)=>btn('ev',x.id+':'+i,o.l,o.c&&G.money<o.c,'sm'+(i?'':' pri'))).join('')+'</div></div>'}).join(''):'<span class="mut">As linhas estão operando sem ocorrências.</span>';
+ $('vis').innerHTML=G.visit?'<div class="ord"><h3>Visita da '+G.visit.cl+'</h3><div class="mut">Chega em '+tm(G.visit.t-G.t)+' · preparo '+G.visit.prep+'/3 · pontuação prevista <b class="num">'+Math.round(visitScore().total)+'</b></div>'+btn('prep',0,'Preparar a visita · R$ 18.000',G.visit.prep>=3||G.money<600,'sm pri')+'</div>':'<span class="mut">Nenhuma visita agendada.</span>'+(G.vlast?'<div class="mut">Última visita: '+G.vlast+'</div>':'');
+ drawY();if(G.tab==='pes')$('pane-pes').innerHTML=pesPane();else if(G.tab==='nfb')$('pane-nfb').innerHTML=nfbPane()}
+
+function drawZone(i,t){if(i<8)return drawZone0(i,t);const[ox,oy]=ZP[i];rect(ox,oy,280,260,C.panel,C.line);rect(ox,oy,280,30,C.panel2);txt((i+1)+' · '+ZN[i].toUpperCase(),ox+12,oy+20,13,C.fg);
+ if(i===8){G.mnt.forEach((s,q)=>station('mnt',s,ox+14+(q%3)*84,oy+44+Math.floor(q/3)*58,t));
+  const n=Math.min(10,Math.ceil(G.raw.manta/90));for(let q=0;q<n;q++){const x=ox+16+(q%5)*50,y=oy+168-Math.floor(q/5)*26;rect(x,y,44,20,C.panel2,C.line);rect(x,y+8,44,4,C.accent)}
+  txt('mantas '+sh(G.raw.manta),ox+16,oy+228,11,C.fg);txt('espuma '+sh(G.raw.espuma),ox+150,oy+228,11,G.raw.espuma<600?C.bad:C.fg)}
+ if(i===9){const on=G.moi.some(s=>s.p);cx.fillStyle=C.line;cx.beginPath();cx.moveTo(ox+40,oy+50);cx.lineTo(ox+140,oy+50);cx.lineTo(ox+110,oy+110);cx.lineTo(ox+70,oy+110);cx.fill();rect(ox+60,oy+110,60,50,C.panel2,C.line);
+  cx.save();cx.translate(ox+90,oy+135);cx.rotate(on?t*4:0);cx.strokeStyle=C.accent;cx.lineWidth=3;for(let q=0;q<4;q++){cx.rotate(Math.PI/4);cx.beginPath();cx.moveTo(-14,0);cx.lineTo(14,0);cx.stroke()}cx.restore();
+  worker(ox+190,oy+110,t,on,C.info);const f=Math.min(1,G.reb/RB);rect(ox+150,oy+150,110,16,C.panel2,C.line);rect(ox+152,oy+152,106*f,12,G.reb>=RB*.75?C.bad:C.accent);
+  txt('rebarba '+sh(G.reb)+'/'+sh(RB),ox+205,oy+184,11,G.reb>=RB*.75?C.bad:C.fg,'center');txt('reciclado '+G.recycled+' kg',ox+205,oy+204,11,C.mute,'center')}
+ if(i===10){rect(ox+14,oy+44,252,18,C.line);G.fer.forEach((s,q)=>{const x=ox+20+q*80;worker(x+16,oy+98,t,!!s.p,C.info);rect(x,oy+104,60,14,C.line);if(s.p)rect(x+26,oy+96,18,8,C.accent)});
+  KEYS.forEach((p,q)=>{const x=ox+20+q*84,w=G.mold[p];rect(x,oy+150,70,40,C.panel2,C.line);rect(x+4,oy+154,62,18,PC[p]);rect(x+4,oy+178,62*Math.min(1,w/100),6,w>=70?C.bad:C.ok);txt(PR[p].n+' '+Math.round(w)+'%',x+35,oy+206,10,w>=70?C.bad:C.fg,'center')});
+  if(G.nfb.run&&G.nfb.ph===1){rect(ox+190,oy+70,70,22,C.accent);txt('NFB '+Math.round(100*G.nfb.prog/NFB[1].need)+'%',ox+225,oy+86,11,'#1a1400','center')}}
+ if(i===11){const lunch=LN.some(([q])=>inLunch(q));
+  rect(ox+14,oy+40,120,70,C.panel2,C.line);txt('REFEITÓRIO',ox+74,oy+56,10,C.mute,'center');for(let q=0;q<Math.min(12,2+G.ref*3);q++)dot(ox+26+(q%6)*18,oy+78+Math.floor(q/6)*18+(lunch?Math.sin(t*3+q)*2:0),5,lunch?C.accent:C.line);
+  rect(ox+146,oy+40,120,70,C.panel2,G.amb?C.ok:C.line);txt('AMBULATÓRIO',ox+206,oy+56,10,C.mute,'center');rect(ox+198,oy+64,16,38,G.amb?C.bad:C.line);rect(ox+188,oy+75,36,16,G.amb?C.bad:C.line);
+  for(let q=0;q<4;q++){const x=ox+20+q*30;rect(x,oy+130,14,34,q<G.brig?C.bad:C.line,C.line);rect(x+3,oy+126,8,6,C.mute)}
+  txt('brigada '+G.brig+'/4',ox+14,oy+182,11,C.fg);txt('multiplicadores '+G.mult+'/4',ox+14,oy+200,11,C.fg);
+  for(let q=0;q<4;q++)worker(ox+170+q*22,oy+150,t,q<G.mult,q<G.mult?C.ok:C.line);
+  rect(ox+14,oy+216,252,10,C.panel2,C.line);rect(ox+16,oy+218,248*G.moral/100,6,G.moral<40?C.bad:C.ok);txt('moral '+Math.round(G.moral),ox+140,oy+246,11,C.fg,'center');
+  if(G.fx.blackout>G.t){rect(ox,oy,280,260,'rgba(255,60,40,.18)');txt('EMERGÊNCIA',ox+140,oy+130,18,C.bad,'center')}}}
+
+/* ===== Etapa 1: modelos, marcas, RH, almoxarifado e qualidade avançada ===== */
+const VAR={b:{n:'Básico',m:1,mod:null,c:0},p:{n:'Com pisca',m:1.25,mod:'led',c:6000},t:{n:'Térmico',m:1.35,mod:'resis',c:8000},c:{n:'Com câmera',m:1.8,mod:'cam',c:14000}};
+const MOD={led:'p',resis:'t',cam:'c'};
+Object.assign(MAT,{led:{n:'Módulo de pisca LED',p:.7,lot:600},resis:{n:'Resistência térmica',p:.5,lot:600},cam:{n:'Módulo de câmera',p:2.2,lot:400}});
+const SUP=[{n:'Nacional',pm:1,eta:[10,14],risk:0,d:'Preço e prazo padrão.'},{n:'Local (entrega rápida)',pm:1.12,eta:[4,6],risk:0,d:'12% mais caro e chega em poucas horas.'},{n:'Importado (mais barato)',pm:.82,eta:[20,26],risk:.2,d:'18% mais barato, prazo longo e 20% de chance de atraso.'}];
+const TRN={inj:'Injeção',col:'Colagem',mon:'Montagem',qa:'Qualidade',emb:'Embalagem'},TRC=l=>[2500,4000,6000][l];
+const matList=()=>Object.keys(MAT).filter(k=>!MOD[k]||G.vu[MOD[k]]);
+const lowTh=k=>Math.min(600,MAT[k].lot/3);
+const PW=()=>Math.min(34,Math.floor(256/matList().length)-4);
+const whCap=()=>4000*(1+G.wh),packCap=()=>3000*(1+G.wh);
+const shiftMul=()=>1;
+const qDet=()=>Math.min(.99,.9+.04*G.lab+(G.ger.qual?.03:0));
+const ppm=()=>G.qaTot?Math.round(G.esc/G.qaTot*1e6):0;
+const tierOf=n=>/Mercedes|Scania|Volvo|DAF|Toyota|MAN|VWCO/.test(n)?'p':/Fiat|Chevrolet|Volkswagen|Renault|Agrale|Peugeot|Citroën|Ford|Hyundai|Nissan|Honda|Jeep/.test(n)?'v':'n';
+const tierP=n=>({p:1.1,v:.95,n:1})[tierOf(n)];
+const pickVar=()=>{const u=Object.keys(VAR).filter(k=>k!=='b'&&G.vu[k]);return u.length&&Math.random()<.4?u[ri(0,u.length-1)]:'b'};
+const vl=o=>o.v&&o.v!=='b'?' '+VAR[o.v].n.toLowerCase():'';
+const canShip=o=>{if(G.pack[o.p]<o.qty)return false;const v=VAR[o.v||'b'];return !v.mod||G.raw[v.mod]>=o.qty};
+const shipTake=o=>{G.pack[o.p]-=o.qty;const v=VAR[o.v||'b'];if(v.mod)G.raw[v.mod]-=o.qty};
+Object.assign(HI,{wh:{max:3,c:n=>3000*(n+1),get:()=>G.wh,set:()=>{G.wh++},nm:'ampliação do almoxarifado'},fork:{max:3,c:n=>2000*(n+1),get:()=>G.fork,set:()=>{G.fork++},nm:'empilhadeira'},lab:{max:2,c:n=>[8000,12000][n],get:()=>G.lab,set:()=>{G.lab++},nm:'laboratório de testes'}});
+EV.push({k:'greve',t:'Ameaça de greve',d:'O sindicato avisou que a equipe está esgotada com a jornada.',o:[{l:'Negociar abono · R$ 21.000',c:700,f:()=>{G.moral=Math.min(100,G.moral+15)}},{l:'Ignorar',f:()=>{G.fx.blackout=G.t+10;G.moral=Math.max(0,G.moral-10)}}],ig:()=>{G.fx.blackout=G.t+14;G.moral=Math.max(0,G.moral-12)}},
+{k:'recall',t:'Recall de retrovisores',d:'Peças com defeito passaram pela inspeção e chegaram a veículos. A montadora exige ação.',o:[{l:'Executar o recall · R$ 45.000',c:1500,f:()=>{G.rep=Math.min(100,G.rep+1)}},{l:'Contestar',f:()=>{G.rep=Math.max(0,G.rep-8)}}],ig:()=>{G.rep=Math.max(0,G.rep-12)}});
+AUTO.recall='qual';
+function recallCheck(){if(ppm()>6000&&Math.random()<.35&&!G.ev.some(x=>x.k==='recall')){G.ev.push({k:'recall',id:uid++,exp:G.t+DAY});say('Ocorrência: recall exigido por defeitos que escaparam da inspeção.')}}
+function certTry(){const rq=[{c:8000,p:8000,l:1,n:'ISO 9001'},{c:15000,p:3000,l:2,n:'IATF 16949'}][G.cert];if(!rq||G.money<rq.c)return;
+ if(ppm()>rq.p||G.lab<rq.l){spend(rq.c*.25);say('Auditoria '+rq.n+' reprovada: exige PPM abaixo de '+rq.p+' e laboratório nível '+rq.l+'.');return}
+ spend(rq.c);G.cert++;G.rep=Math.min(100,G.rep+5);say('Certificação obtida: '+rq.n+'. Preços 4% melhores.')}
+function hcard(t,d,k){const h=HI[k],n=h.get();return '<div class="ord"><h3>'+t+'</h3><div class="mut">'+d+'</div><div class="row"><span class="num">'+n+'/'+h.max+'</span>'+(n>=h.max?'<span class="good">Completo</span>':btn('hire',k,'Investir · '+R$(h.c(n)),G.money<h.c(n),'sm pri'))+'</div></div>'}
+const tog=(h,on)=>h.replace('class="btn sm"','class="btn sm" aria-pressed="'+!!on+'"');
+function rhPane(){const st=G.inj.length+G.col.length+G.mon.length+G.qa.length+G.emb.length,pe=Math.round(8*st*G.shifts)+10;
+ return '<div class="box"><h2>Turnos e treinamento</h2><div><div class="row"><span>Colaboradores</span><b class="num">'+pe+'</b></div><div class="chips">'+[1,2,3].map(n=>tog(btn('shift',n,n+(n>1?' turnos':' turno'),0,'sm'),G.shifts===n)).join('')+tog(btn('ot',0,'Horas extras',0,'sm'),G.ot)+'</div><div class="mut">Cada turno extra multiplica a produção (1,85x com 2 turnos e 2,7x com 3), mas sobe a folha de pagamento e cansa a equipe: moral cai e acidentes aumentam. Horas extras dão +20% e também derrubam a moral.</div>'+Object.keys(TRN).map(k=>'<div class="row"><span>'+TRN[k]+' · nível '+G.tr[k]+'/3 <span class="mut">(+6% por nível)</span></span>'+(G.tr[k]>=3?'<span class="good">Completo</span>':btn('train',k,'Treinar · '+R$(TRC(G.tr[k])),G.money<TRC(G.tr[k]),'sm'))+'</div>').join('')+'</div></div>'}
+{const o=pesPane;pesPane=()=>rhPane()+o()}
+function estPane(){const cap=whCap(),pk=KEYS.reduce((x,p)=>x+G.pack[p],0),val=matList().reduce((x,k)=>x+G.raw[k]*MAT[k].p,0);
+ const row=(l,v,c)=>'<div class="row"><span>'+l+'</span><b class="num'+(v>=c*.9?' low':'')+'">'+sh(v)+' / '+sh(c)+'</b></div>'+pbar(100*v/c,v>=c*.9);
+ return '<div class="box"><h2>Almoxarifado</h2><div>'+matList().map(k=>row(MAT[k].n,G.raw[k],cap)).join('')+row('Produto acabado (peças)',pk,packCap())+'<div class="row"><span class="mut">Valor em estoque de materiais</span><b class="num">'+R$(val)+'</b></div></div></div>'+
+ '<div class="grid2">'+hcard('Ampliar almoxarifado','Cada nível soma 4.000 por material e 3.000 peças de produto acabado. Com o estoque cheio, a carga volta ao fornecedor e a embalagem para.','wh')+hcard('Empilhadeiras','Cada empilhadeira reduz em 1 ciclo o tempo de descarga nas docas.','fork')+
+ '<div class="ord"><h3>Fornecedor</h3><div class="mut">'+SUP.map((s,i)=>(i===G.sup?'<b>':'')+s.n+': '+s.d+(i===G.sup?'</b>':'')).join('<br>')+'</div>'+btn('sup',0,'Trocar fornecedor',0,'sm pri')+'</div></div>'+
+ '<div class="box"><h2>Cargas a caminho</h2><div>'+(G.dl.length?G.dl.map(d=>'<div class="row"><span>'+MAT[d.item].n+' · '+sh(d.qty)+'</span><span class="mut">chega em '+tm(d.eta)+'</span></div>').join(''):'<span class="mut">Nenhuma carga a caminho.</span>')+'</div></div>'}
+function quaPane(){const H=G.hist.slice(-16),mx=Math.max(8000,...H.map(h=>h.p||0)),rq=[{c:8000,p:8000,l:1,n:'ISO 9001'},{c:15000,p:3000,l:2,n:'IATF 16949'}][G.cert];
+ const ch=H.length?finChart(H,{label:'PPM por dia',max:mx,fmt:v=>Math.round(v),body:(y,bw,L)=>'<polyline class="ln2" points="'+H.map((h,i)=>(L+i*bw+bw/2)+','+y(h.p||0)).join(' ')+'"/>'}):'<span class="mut">O gráfico aparece depois do primeiro dia fechado.</span>';
+ const k=(v,l,c)=>'<div class="kpi"><b class="num '+(c||'')+'">'+v+'</b><span>'+l+'</span></div>';
+ return '<div class="box"><h2>Indicadores de qualidade</h2><div class="kp">'+k(ppm(),'PPM (defeitos que escaparam)',ppm()>6000?'low':'')+k((scrapRate()*100).toFixed(1)+'%','Taxa de defeito')+k(Math.round(qDet()*100)+'%','Detecção na inspeção')+k(sh(G.esc),'Peças defeituosas enviadas')+k(sh(G.scrap),'Peças refugadas')+k(['Nenhuma','ISO 9001','IATF 16949'][G.cert],'Certificação')+'</div></div>'+
+ '<div class="grid2">'+hcard('Laboratório de testes','Câmara de névoa salina, vibração e medição 3D. Cada nível sobe a detecção de defeitos em 4 pontos.','lab')+'<div class="ord"><h3>Certificação</h3><div class="mut">'+(rq?'Próxima: '+rq.n+'. Exige PPM abaixo de '+rq.p+' e laboratório nível '+rq.l+'. Auditoria reprovada custa 25% da taxa. Certificado dá +4% de preço por nível.':'Todas as certificações obtidas.')+'</div>'+(rq?btn('cert',0,'Solicitar auditoria · '+R$(rq.c),G.money<rq.c,'sm pri'):'<span class="good">Completo</span>')+'</div></div>'+
+ '<div class="box"><h2>PPM por dia</h2><div class="svgc">'+ch+'<div class="mut">Acima de 6.000 PPM há risco de recall.</div></div></div>'}
+function modPane(){return '<div class="box"><h2>Modelos de retrovisor</h2><div><div class="mut">Homologue modelos especiais. Pedidos desses modelos pagam mais e exigem o módulo no estoque na hora de despachar. O módulo é comprado no Recebimento.</div></div></div><div class="grid2">'+Object.entries(VAR).map(([id,v])=>'<div class="ord"><h3>'+v.n+'</h3><div class="mut">'+(v.mod?'Preço '+Math.round((v.m-1)*100)+'% maior. Exige: '+MAT[v.mod].n.toLowerCase()+' (1 por peça).':'Modelo padrão, sem módulo extra.')+'</div><div class="row"><span class="num">x'+v.m.toFixed(2).replace('.',',')+'</span>'+(G.vu[id]?'<span class="good">Homologado</span>':btn('unlock',id,'Homologar · '+R$(v.c),G.money<v.c,'sm pri'))+'</div></div>').join('')+'</div>'+
+ '<div class="box"><h2>Perfis das montadoras</h2><div><div class="mut">Premium (Mercedes-Benz, Scania, Volvo, DAF, Toyota, MAN, VWCO) pagam 10% mais, mas aplicam multa e perda de reputação maiores. Volume (Volkswagen, Fiat, Chevrolet, Renault, Ford e outras) pagam 5% menos. As demais pagam o preço padrão.</div></div></div>'}
+function drawY(){if(G.tab==='est')$('pane-est').innerHTML=estPane();else if(G.tab==='qua')$('pane-qua').innerHTML=quaPane();else if(G.tab==='mod')$('pane-mod').innerHTML=modPane()}
+/* ===== Etapa 2: campanha, conquistas, placar ===== */
+const lateN=()=>Object.values(G.brand).reduce((a,b)=>a+b.late,0);
+const CAMP=[
+{n:'Primeiro mês',b:()=>'Chegue a '+R$(20000)+' em caixa.',days:12,rw:3000,prog:()=>[G.money,20000,R$(G.money)+' de '+R$(20000)],ok:()=>G.money>=20000},
+{n:'Crise do chip',b:()=>'O preço do kit de motor dobrou. Entregue 6.000 peças sem parar a fábrica.',days:12,rw:5000,prog:()=>{const v=G.sent-G.camp.sent0;return[v,6000,sh(v)+' de 6.000 peças']},ok:()=>G.sent-G.camp.sent0>=6000},
+{n:'Pico de demanda',b:()=>'Os pedidos ficaram 60% maiores. Entregue 12.000 peças com no máximo 2 atrasos.',days:10,rw:6000,prog:()=>{const v=G.sent-G.camp.sent0;return[v,12000,sh(v)+' de 12.000 · atrasos '+(lateN()-G.camp.late0)+'/2']},ok:()=>G.sent-G.camp.sent0>=12000&&lateN()-G.camp.late0<=2},
+{n:'Auditoria de qualidade',b:()=>'Obtenha a certificação ISO 9001 com PPM abaixo de 5.000.',days:15,rw:6000,prog:()=>[G.cert>=1&&ppm()<5000?1:0,1,(G.cert>=1?'Certificado':'Sem certificado')+' · PPM '+ppm()],ok:()=>G.cert>=1&&ppm()<5000},
+{n:'Projeto NFB',b:()=>'Homologue o retrovisor do Projeto NFB da VWCO e mantenha '+R$(40000)+' em caixa.',days:22,rw:12000,prog:()=>[G.nfb.done?1:G.nfb.ph/4,1,'Fase '+Math.min(4,G.nfb.ph+1)+' de 4 · caixa '+R$(G.money)],ok:()=>G.nfb.done&&G.money>=40000}];
+function showMsg(t,p,b){pause();const m=$('modal');m.hidden=false;m.innerHTML='<div role="dialog" aria-modal="true"><h2>'+t+'</h2><p>'+p+'</p><button class="btn pri" data-act="go" autofocus>'+(b||'Continuar')+'</button></div>'}
+function campStart(i,silent){const c=CAMP[i];G.camp.ch=i;G.camp.t0=G.t;G.camp.sent0=G.sent;G.camp.late0=lateN();G.fx.chip=i===1;G.fx.peak=i===2;say('Capítulo '+(i+1)+': '+c.n+'.');if(!silent)showMsg('Capítulo '+(i+1)+' · '+c.n,c.b()+' Prazo: '+c.days+' dias.','Começar')}
+function campBegin(){if(G.mode==='camp'&&!G.camp.started){G.camp.started=true;campStart(0,true)}}
+function campTick(){if(G.mode!=='camp'||!G.camp.started||G.camp.done)return;const c=CAMP[G.camp.ch],el=G.t-G.camp.t0,lim=c.days*DAY;
+ if(c.ok()){const st=Math.max(1,(el/lim<.6?3:el/lim<.85?2:1)-G.camp.retry);G.camp.stars[G.camp.ch]=st;earn(c.rw);G.rep=Math.min(100,G.rep+3);G.camp.retry=0;const res='★'.repeat(st)+'☆'.repeat(3-st);
+  if(G.camp.ch>=CAMP.length-1){G.camp.done=true;G.fx.chip=false;G.fx.peak=false;saveScore('campanha');showMsg('Campanha concluída '+res,'Você terminou os 5 capítulos com '+G.camp.stars.reduce((a,b)=>a+b,0)+' de 15 estrelas. A pontuação foi registrada no placar e você pode continuar jogando.','Continuar')}
+  else{const nx=CAMP[G.camp.ch+1];campStart(G.camp.ch+1,true);showMsg(c.n+' concluído '+res,'Bônus de '+R$(c.rw)+'. Próximo capítulo: '+nx.n+'. '+nx.b()+' Prazo: '+nx.days+' dias.','Próximo capítulo')}}
+ else if(el>=lim){G.camp.retry++;G.rep=Math.max(0,G.rep-5);G.camp.t0=G.t;G.camp.sent0=G.sent;G.camp.late0=lateN();showMsg('Prazo esgotado','O objetivo de '+c.n+' não foi cumprido. O prazo recomeça, mas a reputação caiu 5 pontos e as estrelas do capítulo diminuem.','Tentar de novo')}}
+function campBox(){const c=CAMP[G.camp.ch],st=n=>'★'.repeat(n)+'☆'.repeat(3-n);const sum='<div class="mut">Capítulos: '+CAMP.map((x,i)=>G.camp.stars[i]?st(G.camp.stars[i]):'···').join(' · ')+'</div>';
+ if(G.camp.done)return '<div class="good">Campanha concluída: '+G.camp.stars.reduce((a,b)=>a+b,0)+'/15 estrelas.</div>'+sum;
+ const el=G.t-G.camp.t0,lim=c.days*DAY,pr=c.prog();
+ return '<div class="ord"><h3>Capítulo '+(G.camp.ch+1)+' · '+c.n+'</h3><div class="mut">'+c.b()+'</div><div class="row"><span class="mut">Objetivo</span><b class="num">'+pr[2]+'</b></div>'+pbar(100*pr[0]/pr[1])+'<div class="row"><span class="mut">Prazo</span><b class="num">'+(Math.max(0,lim-el)/DAY).toFixed(1).replace('.',',')+' dias</b></div>'+pbar(100*el/lim,el>lim*.8)+'</div>'+sum}
+const ACH=[
+{id:'a1',n:'Primeira entrega',d:'Entregue o primeiro pedido.',ok:()=>G.delivered>=1},
+{id:'a2',n:'Fábrica em ritmo',d:'Envie 1.000 peças.',ok:()=>G.sent>=1000},
+{id:'a3',n:'Dez mil peças',d:'Envie 10.000 peças.',ok:()=>G.sent>=10000},
+{id:'a4',n:'Cinquenta mil peças',d:'Envie 50.000 peças.',ok:()=>G.sent>=50000},
+{id:'a5',n:'Dez dias sem acidente',d:'Chegue ao dia 10 com zero acidentes.',ok:()=>G.day>=10&&G.acc===0},
+{id:'a6',n:'Linha verde',d:'Mantenha PPM abaixo de 2.000 após inspecionar 20.000 peças.',ok:()=>G.qaTot>=20000&&ppm()<2000},
+{id:'a7',n:'Certificado ISO 9001',d:'Obtenha a certificação ISO 9001.',ok:()=>G.cert>=1},
+{id:'a8',n:'IATF 16949',d:'Obtenha a certificação IATF 16949.',ok:()=>G.cert>=2},
+{id:'a9',n:'Reciclador',d:'Recicle 10.000 kg de rebarba.',ok:()=>G.recycled>=10000},
+{id:'a10',n:'Parceiro de confiança',d:'Entregue 18.000 peças para uma mesma montadora.',ok:()=>Object.values(G.brand).some(b=>b.u>=18000)},
+{id:'a11',n:'Catálogo completo',d:'Homologue todos os modelos.',ok:()=>Object.keys(VAR).every(k=>G.vu[k])},
+{id:'a12',n:'Três turnos',d:'Opere com 3 turnos.',ok:()=>G.shifts===3},
+{id:'a13',n:'Diretoria completa',d:'Contrate os seis gerentes.',ok:()=>Object.values(G.ger).every(v=>v)},
+{id:'a14',n:'Projeto NFB',d:'Homologue o Projeto NFB.',ok:()=>G.nfb.done},
+{id:'a15',n:'Brigada nota 10',d:'Tenha 4 brigadistas e o ambulatório completo.',ok:()=>G.brig>=4&&G.amb>=2},
+{id:'a16',n:'Primeiro milhão',d:'Chegue a R$ 1.000.000 em caixa.',ok:()=>G.money*K>=1e6},
+{id:'a17',n:'Meta batida',d:'Atinja a meta de caixa.',ok:()=>G.money>=GOAL},
+{id:'a18',n:'Campanha completa',d:'Termine os cinco capítulos.',ok:()=>G.camp.done}];
+let toastT=null;
+function showToast(t){const e=$('toast');e.textContent=t;e.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>{e.hidden=true},3800)}
+function achTick(){ACH.forEach(a=>{if(!G.ach[a.id]&&a.ok()){G.ach[a.id]=G.t||1;showToast('Conquista: '+a.n);sfx('ach');say('Conquista desbloqueada: '+a.n+'.')}})}
+function dayToast(r,e){showToast('Dia '+G.day+' encerrado · receita '+R$(r)+' · despesa '+R$(e))}
+function getScores(){try{return JSON.parse(localStorage.getItem('fabrica-placar')||'[]')}catch(e){return[]}}
+function saveScore(tag){try{const L=getScores();L.push({tag,sc:Math.round(G.money*K/1000+G.sent/20+Object.keys(G.ach).length*300+G.camp.stars.reduce((a,b)=>a+(b||0),0)*500),day:G.day,diff:G.diff,mode:G.mode,at:new Date().toLocaleDateString('pt-BR')});L.sort((a,b)=>b.sc-a.sc);localStorage.setItem('fabrica-placar',JSON.stringify(L.slice(0,10)))}catch(e){}}
+function achPane(){const n=Object.keys(G.ach).length,L=getScores();
+ return '<div class="box"><h2>Conquistas · '+n+' de '+ACH.length+'</h2><div class="grid2">'+ACH.map(a=>'<div class="ord"><h3 class="'+(G.ach[a.id]?'good':'')+'">'+(G.ach[a.id]?'✔ ':'○ ')+a.n+'</h3><div class="mut">'+a.d+'</div></div>').join('')+'</div></div>'+
+ '<div class="box"><h2>Placar deste navegador</h2><div class="tw">'+(L.length?'<table><thead><tr><th>#</th><th>Pontos</th><th>Resultado</th><th>Modo</th><th>Dia</th><th>Data</th></tr></thead><tbody>'+L.map((x,i)=>'<tr><td class="num">'+(i+1)+'</td><td class="num">'+x.sc.toLocaleString('pt-BR')+'</td><td>'+x.tag+'</td><td>'+(x.mode==='camp'?'Campanha':'Livre')+'</td><td class="num">'+x.day+'</td><td>'+x.at+'</td></tr>').join('')+'</tbody></table>':'<span class="mut">Sem partidas registradas. A pontuação é salva quando você vence, perde ou conclui a campanha.</span>')+'</div></div>'}
+{const o=drawY;drawY=function(){o();if(G.tab==='ach')$('pane-ach').innerHTML=achPane();$('campbox').hidden=G.mode!=='camp';if(G.mode==='camp')$('camp').innerHTML=campBox()}}
+{const mo=modal;modal=function(k){mo(k);if(k==='intro'){const d=$('modal').querySelector('[role=dialog]'),g=document.createElement('div');g.className='chips';g.setAttribute('role','group');g.setAttribute('aria-label','Modo de jogo');g.innerHTML=[['camp','Campanha'],['livre','Livre']].map(m=>'<button class="btn" data-act="mode" data-a="'+m[0]+'" aria-pressed="'+(G.mode===m[0])+'">'+m[1]+'</button>').join('');d.insertBefore(g,d.querySelector('.chips'))}}}
+/* ===== Etapa 3: efeitos visuais ===== */
+function forklift(x,y,t){rect(x+3,y+14,30,5,'rgba(0,0,0,.15)');rect(x,y,26,14,C.accent,C.line);rect(x+18,y-12,4,26,C.mute);rect(x+22,y+10,16,3,C.mute);rect(x+4,y-6,12,6,C.fg);dot(x+6,y+16,4,'#222');dot(x+20,y+16,4,'#222');rect(x+24,y+2,10,8,MC.resina,C.line)}
+function visitor(x,y,t){const b=Math.sin(t*8)*2;rect(x-5,y-2+b,10,14,C.ok);dot(x,y-9+b,5,'#e9c9a0');cx.fillStyle='#fff';cx.beginPath();cx.arc(x,y-10+b,5.5,Math.PI,0);cx.fill();rect(x-4,y+12,3,6+(b>0?2:0),'#333');rect(x+1,y+12,3,6+(b>0?0:2),'#333')}
+function ambulance(x,y,t){rect(x,y,44,20,'#fff',C.line);rect(x+30,y+4,12,8,C.info);rect(x+10,y+5,4,10,C.bad);rect(x+7,y+8,10,4,C.bad);dot(x+9,y+21,4,'#222');dot(x+34,y+21,4,'#222');dot(x+22,y-3,3,Math.sin(t*14)>0?'#2b7bff':'#ff3b3b')}
+function effects(t){LN.forEach(([k])=>{if(inLunch(k)){const[ox,oy]=ZP[LZ[k]];rect(ox+8,oy+8,80,16,G.volv.includes(k)?C.ok:C.accent);txt(G.volv.includes(k)?'ALMOÇO · VOLANTE':'ALMOÇO',ox+48,oy+20,9,'#000','center')}});
+ const hm=((360+(G.t%DAY)*24)%1440)/60;let a=0,c='255,140,40';
+ if(hm>=19||hm<4){a=.24;c='40,70,150'}else if(hm>=17){a=.24*(hm-17)/2;c='255,120,40'}else if(hm<6){a=.24*(6-hm)/2;c='80,110,190'}
+ if(a>0)rect(0,0,1200,840,'rgba('+c+','+a.toFixed(3)+')');
+ if(G.unl.length)forklift(ZP[0][0]+40+(Math.sin(t*1.4)*.5+.5)*150,ZP[0][1]+176,t);
+ if(G.visit&&G.visit.t-G.t<=3)for(let i=0;i<3;i++)visitor(20+((t*38+i*34)%1160),274,t+i);
+ if(G.fx.fire>G.t){const[ox,oy]=ZP[1];rect(ox,oy,280,260,'rgba(255,50,20,'+(.16+.08*Math.sin(t*9)).toFixed(2)+')');
+  for(let q=0;q<7;q++){const x=ox+22+q*38,h=30+Math.sin(t*9+q*2)*12;cx.fillStyle='#ff7a1a';cx.beginPath();cx.moveTo(x-12,oy+180);cx.lineTo(x,oy+180-h);cx.lineTo(x+12,oy+180);cx.fill();cx.fillStyle='#ffd23a';cx.beginPath();cx.moveTo(x-6,oy+180);cx.lineTo(x,oy+180-h*.6);cx.lineTo(x+6,oy+180);cx.fill();dot(x+Math.sin(t*2+q)*6,oy+150-((t*30+q*20)%70),6,'rgba(120,120,120,.35)')}
+  txt('INCÊNDIO',ox+140,oy+60,18,C.bad,'center')}
+ if(G.fx.amb>G.t)ambulance(ZP[11][0]+8+((t*70)%230),ZP[11][1]+232,t)}
+/* ===== RH: processo seletivo ===== */
+const ESC=['Ensino fundamental','Ensino médio','Técnico','Superior'];
+const SKL=[['inj','Operação de injetora','injet|inje[cç][aã]o|moldagem|pl[aá]stic'],['mold','Troca de molde / setup','molde|setup|smed|troca r[aá]pida'],['mont','Montagem industrial','montag|linha de produ|assembl'],['cola','Colagem / adesivos','\\bcola|adesiv|colagem'],['nr12','NR-12 (segurança em máquinas)','nr[- ]?12'],['nr10','NR-10 (elétrica)','nr[- ]?10'],['emp','Empilhadeira','empilhadeira|paleteira'],['cep','CEP / Qualidade (IATF)','\\bcep\\b|iatf|qualidade|inspe[cç]|ppap|fmea|\\b8d\\b'],['metro','Metrologia','metrolog|paqu[ií]metro|micr[oô]metro'],['cnc','Usinagem / CNC','\\bcnc\\b|usinag|torno|fresa'],['manu','Manutenção industrial','manuten|el[eé]tric|mec[aâ]nic|\\bplc\\b|hidr[aá]ul|pneum'],['lid','Liderança de equipe','l[ií]der|supervis|coordena|gest[aã]o de equipe'],['erp','SAP / ERP / WMS','\\bsap\\b|\\berp\\b|totvs|protheus|\\bmrp\\b|\\bwms\\b'],['idi','Inglês ou alemão','ingl[eê]s|alem[aã]o|english|deutsch'],['xl','Excel','excel|planilha']];
+const VG=[
+{id:'inj',n:'Operador(a) de injetora',s:'Injeção plástica',sk:['inj','mold','nr12'],esc:1,exp:0,k:'inj'},
+{id:'col',n:'Auxiliar de colagem',s:'Colagem',sk:['cola','mont','nr12'],esc:1,exp:0,k:'col'},
+{id:'mc',n:'Montador(a) de caminhões',s:'Montagem · caminhões',sk:['mont','nr12','manu'],esc:1,exp:1,k:'mon',p:'truck'},
+{id:'ma',n:'Montador(a) de autos',s:'Montagem · autos',sk:['mont','nr12','xl'],esc:1,exp:0,k:'mon',p:'car'},
+{id:'mb',n:'Montador(a) de ônibus',s:'Montagem · ônibus',sk:['mont','nr12','nr10'],esc:1,exp:1,k:'mon',p:'bus'},
+{id:'qa',n:'Inspetor(a) de qualidade',s:'Qualidade',sk:['cep','metro','xl'],esc:2,exp:1,k:'qa'},
+{id:'emb',n:'Operador(a) de embalagem',s:'Embalagem',sk:['mont','nr12','emp'],esc:0,exp:0,k:'emb'},
+{id:'exp',n:'Auxiliar de expedição',s:'Expedição e logística',sk:['emp','erp','xl'],esc:1,exp:0,k:'exp'},
+{id:'rec',n:'Conferente de recebimento',s:'Recebimento e almoxarifado',sk:['emp','erp','metro'],esc:1,exp:1,k:'rec'},
+{id:'fer',n:'Ferramenteiro(a)',s:'Ferramentaria',sk:['cnc','mold','metro'],esc:2,exp:3,k:'fer'},
+{id:'man',n:'Técnico(a) de manutenção',s:'Manutenção',sk:['manu','nr10','nr12'],esc:2,exp:2,k:'man'},
+{id:'sc',n:'Analista de supply chain',s:'Supply chain e PCP',sk:['erp','xl','idi'],esc:3,exp:2,k:'sc'}];
+const SKN=Object.fromEntries(SKL.map(s=>[s[0],s[1]]));
+const LAD=['Operação','Líder de linha','Supervisor','Coordenador','Gerente'];
+const BON={inj:'+ produção das injetoras',col:'+ produção da colagem',mon:'+ produção da montagem',qa:'− refugo',emb:'+ produção da embalagem',exp:'+ preço nos pedidos',rec:'− custo de materiais',fer:'− refugo',man:'− quebras de máquinas',sc:'− custo de materiais'};
+let RH={step:'inicio',cv:null,msg:'',res:null};
+function rhNew(){const k=VG.map(v=>v.id).sort(()=>Math.random()-.5),must=['inj','mc','ma'];const open=new Set(must);k.forEach(i=>{if(open.size<8)open.add(i)});G.vagas={};VG.forEach(v=>G.vagas[v.id]=open.has(v.id)?ri(1,3):0)}
+function rhDetect(t){const x=t.toLowerCase();return SKL.filter(s=>new RegExp(s[2],'i').test(x)).map(s=>s[0])}
+function rhParse(t,fn){const x=t.replace(/\s+/g,' ');let nm=(t.split(/\n/).map(l=>l.trim()).find(l=>l)||'');if(nm.length>40||/[\d@]/.test(nm))nm=(fn||'').replace(/\.[a-z0-9]+$/i,'').replace(/[_-]+/g,' ');
+ let ex=0,m;const r1=/(\d{1,2})\s*\+?\s*(anos|ano|years)/gi;while(m=r1.exec(x))ex=Math.max(ex,+m[1]);
+ let sum=0;const r2=/((?:19|20)\d\d)\s*(?:-|–|a|até)\s*((?:19|20)\d\d|presente|atual|hoje)/gi,yr=new Date().getFullYear();while(m=r2.exec(x)){const b=+m[1],e=/\d/.test(m[2])?+m[2]:yr;if(e>=b&&e-b<=40)sum+=e-b}
+ ex=Math.min(40,Math.max(ex,sum));const l=x.toLowerCase();const esc=/superior|gradua|bacharel|engenhar|tecn[oó]log|administra/.test(l)?3:/t[eé]cnico|senai/.test(l)?2:/fundamental/.test(l)&&!/m[eé]dio/.test(l)?0:1;
+ return{n:nm.slice(0,40),esc,exp:ex,sk:rhDetect(t),t:t.slice(0,2000)}}
+function rhScore(v,c){const h=v.sk.filter(s=>c.sk.includes(s));let p=45*h.length/v.sk.length;p+=c.esc>=v.esc?20:Math.max(0,20-12*(v.esc-c.esc));p+=v.exp===0?25:25*Math.min(1,c.exp/v.exp);if(c.sk.includes('lid')&&c.exp>=3)p+=5;if(c.sk.includes('idi'))p+=5;if(v.exp===0&&c.exp>=2)p+=0;return{sc:Math.min(100,Math.round(p)),h,miss:v.sk.filter(s=>!c.sk.includes(s))}}
+function rhHead(t,sub){return '<h2>'+t+'</h2>'+(sub?'<p class="mut">'+sub+'</p>':'')}
+function rhShow(){const m=$('modal');m.hidden=false;let h='',c=RH.cv;
+ if(RH.step==='inicio')h=rhHead('Processo seletivo','Para trabalhar na fábrica você precisa ser contratado(a). Monte seu currículo agora ou envie o seu currículo real para análise. Veja depois em quais setores estamos contratando.')+'<div class="chips"><button class="btn pri" data-act="rh" data-a="criar">Criar currículo agora</button><button class="btn" data-act="rh" data-a="enviar">Enviar meu currículo</button></div>';
+ else if(RH.step==='enviar')h=rhHead('Enviar currículo','Aceito arquivos .pdf, .docx, .txt ou .md. A leitura acontece só no seu navegador, o arquivo não é enviado para nenhum servidor. Se preferir, cole o texto abaixo.')+'<input id="cvf" type="file" accept=".pdf,.docx,.txt,.md" aria-label="Arquivo do currículo"><textarea id="cvp" rows="7" placeholder="Ou cole aqui o texto do seu currículo" aria-label="Texto do currículo" style="width:100%"></textarea>'+(RH.msg?'<p class="bad">'+RH.msg+'</p>':'')+'<div class="chips"><button class="btn pri" data-act="rh" data-a="analisar">Analisar currículo</button><button class="btn" data-act="rh" data-a="inicio">Voltar</button></div>';
+ else if(RH.step==='form'){c=c||{n:'',esc:1,exp:0,sk:[],t:''};h=rhHead('Seu currículo',RH.msg||'Preencha os dados. Habilidades citadas no texto livre também contam.')+'<label>Nome<br><input id="cvn" value="'+c.n.replace(/"/g,'&quot;')+'" maxlength="40" style="width:100%"></label><div class="chips"><label>Escolaridade <select id="cve">'+ESC.map((e,i)=>'<option value="'+i+'"'+(c.esc===i?' selected':'')+'>'+e+'</option>').join('')+'</select></label><label>Anos de experiência <input id="cvx" type="number" min="0" max="40" value="'+c.exp+'" style="width:64px"></label></div><fieldset style="border:1px solid var(--line);padding:8px"><legend>Cursos e habilidades</legend><div class="chips" style="display:flex;flex-wrap:wrap;gap:4px 14px">'+SKL.map(s=>'<label><input type="checkbox" class="cvk" value="'+s[0]+'"'+(c.sk.includes(s[0])?' checked':'')+'> '+s[1]+'</label>').join('')+'</div></fieldset><label>Experiências (texto livre)<br><textarea id="cvt" rows="3" style="width:100%">'+(c.t||'').replace(/</g,'&lt;')+'</textarea></label><div class="chips"><button class="btn pri" data-act="rh" data-a="vagas">Ver vagas abertas</button><button class="btn" data-act="rh" data-a="inicio">Voltar</button></div>'}
+ else if(RH.step==='vagas'){h=rhHead('Vagas abertas',c.n+' · '+ESC[c.esc]+' · '+c.exp+' anos de experiência')+'<div class="grid2">'+VG.map(v=>{const o=G.vagas[v.id],r=rhScore(v,c);return '<div class="ord"><h3>'+v.n+'</h3><div class="mut">'+v.s+'</div><div class="mut">Pede: '+v.sk.map(s=>SKN[s]).join(', ')+' · '+ESC[v.esc]+(v.exp?' · '+v.exp+'+ anos':'')+'</div><div class="row">'+(o?'<span class="good">'+o+(o>1?' vagas':' vaga')+'</span><span class="mut">encaixe '+r.sc+'%</span>':'<span class="mut">Sem vagas agora</span>')+'</div>'+(o?'<button class="btn sm pri" data-act="rh" data-a="cand:'+v.id+'">Candidatar-se</button>':'')+'</div>'}).join('')+'</div><div class="chips"><button class="btn" data-act="rh" data-a="editar">Editar currículo</button></div>'}
+ else if(RH.step==='res'){const v=RH.res.v,r=RH.res.r;if(r.sc>=50){const b=(.04+(r.sc-50)/50*.12);h=rhHead('Pré-aprovado(a)!',c.n+', você passou na triagem para '+v.n+' em '+v.s+'. O dono ainda precisa aprovar a contratação.')+'<p>Nota da análise: <b>'+r.sc+'/100</b>. Seu bônus de função: <b>'+BON[v.k]+' de '+Math.round(b*100)+'%</b>. Com o tempo você é promovido(a) e o bônus cresce.</p><div class="chips"><button class="btn pri" data-act="rh" data-a="assinar">Enviar candidatura ao dono</button></div>'}
+  else h=rhHead('Não foi desta vez','Nota da análise: '+r.sc+'/100 (mínimo 50) para '+v.n+'.')+'<p>'+(r.miss.length?'Faltou: '+r.miss.map(s=>SKN[s]).join(', ')+'. ':'')+(c.esc<v.esc?'A vaga pede '+ESC[v.esc]+'. ':'')+(c.exp<v.exp?'A vaga pede '+v.exp+'+ anos de experiência.':'')+'</p><div class="chips"><button class="btn pri" data-act="rh" data-a="vagas">Outras vagas</button><button class="btn" data-act="rh" data-a="editar">Melhorar currículo</button></div>'}
+ m.innerHTML='<div role="dialog" aria-modal="true" style="max-width:720px">'+h+'</div>'}
+function rhRead(){const c={n:($('cvn').value||'Candidato').trim()||'Candidato',esc:+$('cve').value,exp:Math.max(0,Math.min(40,+$('cvx').value||0)),t:$('cvt').value};const ck=[...document.querySelectorAll('.cvk:checked')].map(e=>e.value);c.sk=[...new Set(ck.concat(rhDetect(c.t)))];RH.cv=c;try{localStorage.setItem('fabrica-cv',JSON.stringify(c))}catch(e){}}
+function lib(u){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=u;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+async function rhFile(f){const nm=f.name.toLowerCase();if(/\.(txt|md|csv)$/.test(nm))return await f.text();
+ if(nm.endsWith('.pdf')){const B='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';await lib(B+'pdf.min.js');const w=await (await fetch(B+'pdf.worker.min.js')).text();pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([w],{type:'text/javascript'}));const d=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;let o='';for(let i=1;i<=Math.min(d.numPages,6);i++){const p=await d.getPage(i),c=await p.getTextContent();o+=c.items.map(x=>x.str).join(' ')+'\n'}return o}
+ if(nm.endsWith('.docx')){await lib('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');const z=await JSZip.loadAsync(await f.arrayBuffer());const x=await z.file('word/document.xml').async('string');return x.replace(/<\/w:p>/g,'\n').replace(/<[^>]+>/g,'')}
+ throw new Error('fmt')}
+async function rhAct(a){
+ if(a==='inicio'){RH.step='inicio';RH.msg=''}
+ else if(a==='criar'){let c=null;try{c=JSON.parse(localStorage.getItem('fabrica-cv'))}catch(e){}RH.cv=c||{n:'',esc:1,exp:0,sk:[],t:''};RH.step='form';RH.msg=''}
+ else if(a==='enviar'){RH.step='enviar';RH.msg=''}
+ else if(a==='analisar'){let t=($('cvp').value||'').trim(),fn='',f=$('cvf').files[0];
+  if(f){fn=f.name;try{t=await rhFile(f)}catch(e){RH.msg=/fmt/.test(e.message)?'Formato não suportado. Use PDF, DOCX, TXT ou cole o texto.':'Não consegui ler o arquivo aqui. Cole o texto do currículo na caixa abaixo.';return rhShow()}}
+  if(t.length<20){RH.msg='Não encontrei texto no currículo. Cole o texto abaixo.';return rhShow()}
+  RH.cv=rhParse(t,fn);RH.step='form';RH.msg='Analisei seu currículo: '+RH.cv.sk.length+' habilidades relevantes, '+RH.cv.exp+' anos de experiência. Revise e corrija o que precisar.'}
+ else if(a==='vagas'){if(RH.step==='form')rhRead();RH.step='vagas'}
+ else if(a==='editar'){RH.step='form';RH.msg=''}
+ else if(a.startsWith('cand:')){const v=VG.find(x=>x.id===a.slice(5));RH.res={v,r:rhScore(v,RH.cv)};RH.step='res'}
+ else if(a==='assinar'){const v=RH.res.v,r=RH.res.r;G.me={n:RH.cv.n,id:v.id,k:v.k,p:v.p||null,vn:v.n,s:v.s,sc:r.sc,b:.04+(r.sc-50)/50*.12,lvl:0,sk:RH.cv.sk};G.vagas[v.id]=Math.max(0,G.vagas[v.id]-1);$('modal').hidden=true;campBegin();setSpeed(1);render();return}
+ rhShow()}
+function meCargo(){const m=G.me;return m?LAD[m.lvl]+' · '+m.s:''}
+function meUpd(){const m=G.me;let e=$('me');if(!e){e=document.createElement('div');e.id='me';e.className='kpi';e.innerHTML='<b class="num" id="me-n"></b><span id="me-c"></span>';document.querySelector('header .goal').before(e)}
+ if(!m){e.hidden=true;return}e.hidden=false;const l=Math.min(4,Math.floor((G.day-1)/8));if(l>m.lvl){m.lvl=l;m.b+=.02;showToast('Promoção! Você agora é '+meCargo()+'.');sfx('ach')}
+ $('me-n').textContent=m.n;$('me-c').textContent=meCargo()+' · '+BON[m.k].replace(/^[+−] /,'')+' '+Math.round(m.b*100)+'%'}
+{const A0=A;A=function(act,a){if(act==='go'&&G.t===0&&!G.me){RH.step='inicio';RH.msg='';if(!G.vagas)rhNew();return rhShow()}if(act==='rh')return void rhAct(a);return A0(act,a)}}
+{const r0=render;render=function(){r0();meUpd()}}
+
+/* ===== Etapa 5: acabamento profissional ===== */
+const LOGO='<svg viewBox="0 0 120 56" width="120" height="56" aria-hidden="true"><rect x="2" y="6" width="116" height="44" rx="4" fill="none" stroke="var(--accent)" stroke-width="3"/><path d="M22 40 L22 18 Q22 14 28 14 L58 14 Q64 14 64 20 L64 34 Q64 40 58 40 Z" fill="var(--accent)"/><rect x="70" y="20" width="30" height="14" rx="2" fill="var(--mute)"/><circle cx="30" cy="26" r="5" fill="var(--panel)"/></svg>';
+{const mo=modal;modal=function(k){mo(k);if(k==='intro'){const d=$('modal').querySelector('[role=dialog]');d.insertAdjacentHTML('afterbegin','<div style="display:flex;align-items:center;gap:12px">'+LOGO+'<div class="mut" style="text-transform:uppercase;letter-spacing:.1em">Simulador de gestão industrial<br>Injeção · Colagem · Montagem · Logística</div></div>')}}}
+function helpOpen(){if(!$('modal').hidden&&!G._help)return;G._help=1;const sp=G.speed;G._sp=sp;pause();const m=$('modal');m.hidden=false;
+ m.innerHTML='<div role="dialog" aria-modal="true" style="max-width:640px"><h2>Como jogar</h2><ol style="margin:0;padding-left:20px;line-height:1.55"><li><b>Compre insumos</b> na aba Estoque (ou ligue a compra automática): resina, vidro, kit de motor, cola, caixas, espuma e mantas.</li><li><b>Aceite propostas</b> de clientes e acompanhe o prazo de cada pedido.</li><li>A resina vira carcaça nas <b>injetoras</b>, passa por colagem, montagem, qualidade e embalagem, e a expedição despacha.</li><li><b>Contrate pessoas e gerentes</b>, treine a equipe, cuide da moral, das máquinas e do refugo (aba Pessoas, Qualidade e Modelos).</li><li>Fique de olho em <b>ocorrências</b>, visitas de clientes e no projeto <b>NFB</b>.</li><li>O <b>Conselheiro</b> à direita aponta o gargalo atual.</li></ol><h3 style="margin:8px 0 0">Atalhos</h3><div class="mut"><b>Espaço</b> pausa ou continua · <b>1</b> 1x · <b>2</b> 3x · <b>3</b> 8x · <b>M</b> música · <b>H</b> esta ajuda</div><button class="btn pri" data-act="close" data-a="'+sp+'" autofocus>Voltar ao jogo</button></div>'}
+function dailyCard(r){let e=$('daily');if(!e){e=document.createElement('div');e.id='daily';e.setAttribute('role','status');e.setAttribute('data-act','dismiss');e.style.cssText='position:fixed;left:16px;bottom:16px;z-index:30;background:var(--panel);border:2px solid var(--accent);padding:12px 14px;min-width:230px;box-shadow:0 6px 20px rgba(0,0,0,.25);cursor:pointer';document.body.appendChild(e)}
+ const res=r.rev-r.exp;e.innerHTML='<div style="font:700 15px var(--f-d);text-transform:uppercase;letter-spacing:.06em">Relatório do dia '+r.d+'</div><div class="row"><span class="mut">Receita</span><b class="num">'+R$(r.rev)+'</b></div><div class="row"><span class="mut">Despesas</span><b class="num">'+R$(r.exp)+'</b></div><div class="row"><span class="mut">Resultado</span><b class="num '+(res>=0?'good':'bad')+'">'+R$(res)+'</b></div><div class="row"><span class="mut">Pedidos entregues</span><b class="num">'+r.n+'</b></div><div class="row"><span class="mut">Caixa</span><b class="num">'+R$(G.money)+'</b></div>';e.hidden=false;clearTimeout(e._t);e._t=setTimeout(()=>{e.hidden=true},12000)}
+{const ed=endDay;endDay=function(){const rev=G.dayRev,exp0=G.dayExp,d=G.day,n0=G.delivered;ed();const r={d,rev,exp:G.hist.length?G.hist[G.hist.length-1].e:exp0,n:G.delivered-n0};try{dailyCard(r)}catch(e){}}}
+{const A1=A;A=function(act,a){if(act==='close'){$('modal').hidden=true;G._help=0;if(+a>0)setSpeed(+a);return}if(act==='dismiss'){$('daily').hidden=true;return}if(act==='help')return helpOpen();return A1(act,a)}}
+document.addEventListener('keydown',e=>{const t=e.target;if(t&&/INPUT|TEXTAREA|SELECT/.test(t.tagName)||e.ctrlKey||e.metaKey||e.altKey)return;if(!$('modal').hidden&&e.key!=='h')return;if(G.over)return;
+ if(e.key===' '){e.preventDefault();G.speed?pause():setSpeed(1);render()}else if(e.key==='1'){setSpeed(1);render()}else if(e.key==='2'){setSpeed(3);render()}else if(e.key==='3'){setSpeed(8);render()}else if(e.key==='m'||e.key==='M'){A('mus')}else if(e.key==='h'||e.key==='H'){if(!$('modal').hidden&&G._help)A('close',G._sp||0);else helpOpen()}});
+{const st=document.createElement('style');st.textContent='#me{flex-direction:row!important;align-items:center;gap:10px;padding:4px 10px;border:1px solid var(--line);background:var(--panel2);border-radius:2px}#me .av{width:34px;height:34px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font:700 15px var(--f-d);flex:none}#me .tx{display:flex;flex-direction:column;min-width:0}#me b{font:600 14px var(--f-d);text-transform:uppercase;letter-spacing:.04em}#me span{max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}@media(max-width:700px){#me span{max-width:150px}#daily{left:8px!important;right:8px;bottom:8px!important}}';document.head.appendChild(st);
+ const hb=document.createElement('button');hb.id='hlp';hb.setAttribute('data-act','help');hb.setAttribute('aria-label','Ajuda e atalhos');hb.textContent='?';document.querySelector('header .ctl').appendChild(hb)}
+{const mu=meUpd;meUpd=function(){const had=!!$('me');mu();if(!had&&$('me')){const e=$('me');e.innerHTML='<div class="av" id="me-a"></div><div class="tx"><b id="me-n"></b><span id="me-c"></span></div>'}const m=G.me;if(m&&$('me-a')){$('me-a').textContent=m.n.split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();$('me-n').textContent=m.n}}}
+
+/* ===== Linhas dedicadas por marca ===== */
+const BCOL={'Volkswagen':'#1b4fa0','Fiat':'#b3202a','Chevrolet':'#c9a227','Toyota':'#c8102e','Hyundai':'#1f4e8c','Honda':'#c8102e','Renault':'#d6a900','Ford':'#1d4f91','Jeep':'#3b5a3a','Nissan':'#a0153e','Peugeot':'#1c3f8f','Citroën':'#a71f2d','Marcopolo':'#0b5d3b','Mercedes-Benz Ônibus':'#444','Volvo Ônibus':'#2b4a7a','Scania Ônibus':'#1c3d8f','Comil':'#7a2a2a','Caio':'#0f6a74','Neobus':'#7a3d9a','Agrale':'#b85c00','Scania':'#1c3d8f','Volvo Caminhões':'#2b4a7a','Mercedes-Benz Caminhões':'#444','DAF':'#1a56a0','Iveco':'#1c3f8f','MAN / Volkswagen Caminhões':'#8a1c2a','Ford Cargo':'#1d4f91'};
+const BSEG=[['car','Carros'],['bus','Ônibus'],['truck','Caminhões']];
+const BL_C=[2500,4000,6000],BL_U=[300,1500,5000];
+const blv=n=>(G.bl&&G.bl[n])||0;
+function pickCl(p){const L=CLI[p],w=L.map(n=>1+blv(n)*1.5),t=w.reduce((a,b)=>a+b,0);let r=Math.random()*t;for(let i=0;i<L.length;i++){r-=w[i];if(r<=0)return L[i]}return L[0]}
+function blBuild(n){const l=blv(n),b=G.brand[n]||{u:0};if(l>=3||b.u<BL_U[l]||G.money<BL_C[l])return;spend(BL_C[l]);(G.bl||(G.bl={}))[n]=l+1;say('Linha dedicada '+(l?'ampliada':'aberta')+' para '+n+' (nível '+(l+1)+').');sfx('ok')}
+function blLine(n,l,act){const c=BCOL[n]||'#555',on=act&&l;const st=['Injeção','Colagem','Montagem','Embal.'];
+ return '<svg viewBox="0 0 280 74" width="100%" role="img" aria-label="Linha de produção '+n+'"><rect x="0" y="0" width="280" height="74" fill="var(--panel2)"/><rect x="0" y="0" width="280" height="14" fill="'+c+'"/>'+
+ st.map((s,i)=>{const x=8+i*68,lit=l>=1&&(i<2||l>=2)&&(i<3||l>=3);return '<rect x="'+x+'" y="22" width="56" height="26" rx="2" fill="'+(lit?c:'none')+'" fill-opacity="'+(lit?.85:1)+'" stroke="'+(lit?c:'var(--line)')+'" stroke-dasharray="'+(lit?'0':'3 3')+'"/><text x="'+(x+28)+'" y="39" text-anchor="middle" font-size="9" fill="'+(lit?'#fff':'var(--mute)')+'" font-family="IBM Plex Mono,monospace">'+s+'</text>'}).join('')+
+ '<rect x="4" y="56" width="272" height="5" fill="var(--line)"/>'+(on?'<g class="blbox">'+[0,1,2,3].map(i=>'<rect x="'+(-20+i*70)+'" y="50" width="14" height="10" fill="'+c+'" stroke="var(--line)"><animate attributeName="x" from="'+(-20+i*70)+'" to="'+(250+i*70)+'" dur="6s" repeatCount="indefinite" begin="'+(-i*1.5)+'s"/></rect>').join('')+'</g>':'')+
+ '</svg>'}
+function marPane(){const act=new Set(G.orders.map(o=>o.client));const tot=Object.values(G.bl||{}).reduce((a,b)=>a+b,0);
+ return '<div class="box"><h2>Linhas de produção por marca</h2><div class="mut">Quando uma montadora recebe volume suficiente, você abre uma linha dedicada para ela. Cada nível dá mais pedidos dessa marca, preço melhor (+6% por nível), prazo maior (+10% por nível) e multa de atraso menor. Custo diário de R$ '+(120*K).toLocaleString('pt-BR')+' por nível.</div><div class="row"><span class="mut">Linhas abertas</span><b class="num">'+tot+'</b></div></div>'+
+ BSEG.map(([p,t])=>'<div class="box"><h2>'+t+'</h2><div class="grid2">'+CLI[p].map(n=>{const l=blv(n),b=G.brand[n]||{u:0,rev:0},nx=l<3?BL_U[l]:0,ok=l<3&&b.u>=nx,pr=l<3?Math.min(100,Math.round(b.u/nx*100)):100;
+  return '<div class="ord"><h3 style="display:flex;justify-content:space-between;gap:8px"><span>'+n+'</span><span class="mut">'+(l?'Nível '+l:'Sem linha')+'</span></h3>'+blLine(n,l,act.has(n))+'<div class="row"><span class="mut">'+b.u+' peças · '+R$(b.rev)+'</span>'+(act.has(n)?'<span class="good">pedido em produção</span>':'')+'</div>'+(l<3?'<div class="bar"><i style="width:'+pr+'%"></i></div><div class="row"><span class="mut">'+(ok?'Pronto para '+(l?'ampliar':'abrir'):'Entregue '+nx+' peças para liberar')+'</span>'+btn('bl',n,(l?'Ampliar':'Abrir linha')+' · '+R$(BL_C[l]),!ok||G.money<BL_C[l],'sm pri')+'</div>':'<div class="mut">Linha completa.</div>')+'</div>'}).join('')+'</div></div>').join('')}
+{const A2=A;A=function(act,a){if(act==='bl'){blBuild(a);return render()}return A2(act,a)}}
+{const o=drawY;drawY=function(){o();if(G.tab==='mar')$('pane-mar').innerHTML=marPane()}}
+{const ed=endDay;endDay=function(){const u=Object.values(G.bl||{}).reduce((a,b)=>a+b,0)*120;if(u)spend(u);ed()}}
+
+/* ===== Funções por setor e cargo ===== */
+const PERM={accept:['exp'],decline:['exp'],ship:['exp'],buy:['rec','sc'],sup:['rec','sc'],repair:['man','inj','fer'],cert:['qa'],hire:2,train:2,shift:2,ot:2,res:3,nfb:3};
+const PA={buy:['rec','sc'],ship:['exp']};
+const LBL={exp:'Expedição e logística',rec:'Recebimento e compras',sc:'Supply chain',man:'Manutenção',inj:'Injeção',fer:'Ferramentaria',qa:'Qualidade'};
+const FUN={exp:'Aceitar e recusar propostas dos clientes, despachar pedidos e cuidar da carteira.',rec:'Comprar insumos, escolher fornecedor e conferir o recebimento.',sc:'Comprar insumos, escolher fornecedor e negociar prazos e preços.',man:'Consertar injetoras e prevenir quebras.',inj:'Operar as injetoras e acionar os reparos.',fer:'Cuidar dos moldes e dos reparos.',qa:'Inspeção, auditorias e certificações (IATF).',col:'Operar a colagem. Compras, pedidos e despacho ficam com outros setores.',mon:'Operar a montagem. Compras, pedidos e despacho ficam com outros setores.',emb:'Operar a embalagem. Compras, pedidos e despacho ficam com outros setores.'};
+function canDo(act,a){const m=G.me;if(!m||m.owner)return true;let r=PERM[act];if(act==='auto')r=PA[a];if(!r)return true;if(typeof r==='number')return m.lvl>=r;return r.includes(m.k)}
+function denyMsg(act,a){const r=act==='auto'?PA[a]:PERM[act];if(typeof r==='number')return 'Função de '+LAD[r]+' ou acima. Você é '+LAD[G.me.lvl]+'.';return 'Função de '+r.map(k=>LBL[k]).join(' / ')+'. Quem faz isso na sua equipe é o setor responsável.'}
+let NPC=false;
+function npcRun(){const m=G.me;if(!m)return;if(!(G.staff?G.staff.exp:m.k==='exp')){G.auto.ship=true;if(G.t%5===0&&G.offers.length&&G.orders.filter(o=>o.state==='open').length<3){const b=G.offers.slice().sort((x,y)=>y.pay/y.qty-x.pay/x.qty)[0];NPC=true;try{A('accept',String(b.id))}finally{NPC=false}}}
+ if(!(G.staff?G.staff.rec:['rec','sc'].includes(m.k)))G.auto.buy=true}
+{const A3=A;A=function(act,a){if(!NPC&&!canDo(act,a)){showToast(denyMsg(act,a));sfx('bad');return}return A3(act,a)}}
+{const t0=tick;tick=function(){npcRun();t0()}}
+function funcBox(){const m=G.me;if(!m)return '';const nx=m.lvl<4?'Próxima promoção no dia '+((m.lvl+1)*8+1):'Cargo máximo';
+ return '<h2>Suas funções</h2><div class="mut" style="margin-bottom:6px">'+LAD[m.lvl]+' · '+m.s+'</div><div>'+(FUN[m.k]||'')+'</div><ul class="mut" style="margin:8px 0 0;padding-left:18px"><li>Supervisor: contratar, treinar e definir turnos.</li><li>Coordenador: P&D e Projeto NFB.</li><li>Propostas: só a Logística aceita. Sem você nela, a equipe de logística aceita e despacha sozinha.</li><li>Sem você em Compras, a equipe de compras repõe o estoque.</li></ul><div class="mut" style="margin-top:6px">'+nx+'</div>'}
+{const r1=render;render=function(){r1();let e=$('funcs');const a=document.querySelector('aside');if(!e&&a){e=document.createElement('div');e.id='funcs';e.className='box';a.insertBefore(e,a.firstChild)}
+ if(e){e.hidden=!G.me;if(G.me&&G.t%5===0||e._n!==G.me?.lvl+''+G.me?.k){e.innerHTML=funcBox();e._n=G.me?.lvl+''+G.me?.k}}
+ document.querySelectorAll('[data-act]').forEach(b=>{const act=b.dataset.act,a=b.dataset.a;if(['accept','decline','ship','buy','sup','repair','cert','hire','train','shift','ot','res','nfb','auto'].includes(act)&&G.me&&!canDo(act,a)){b.disabled=true;b.title=denyMsg(act,a)}})}}
+
+/* ===== Turnos nomeados e escala de almoço ===== */
+const LN=[['inj','Injeção'],['col','Colagem'],['mon','Montagem'],['qa','Qualidade'],['emb','Embalagem']];
+const LS=[36,40,43,47,50],LSH=['11:00','11:30','12:00','12:30','13:00'],LDUR=7,LZ={inj:1,col:2,mon:3,qa:4,emb:5};
+function lun(){if(!G.lunch)G.lunch={inj:0,col:1,mon:2,qa:3,emb:4};if(!G.volv)G.volv=[];return G.lunch}
+let inLunch=k=>{const tt=G.t%DAY,s=lun()[k];return tt>=LS[s]&&tt<LS[s]+LDUR};
+function lunchF(k){if(!inLunch(k))return 1;if(G.volv.includes(k))return 1;const n=LN.filter(([q])=>inLunch(q)).length;return n<=1?.7:n===2?.55:.35}
+function lunchLoss(){const t=LN.reduce((a,[k])=>{let l=0;for(let i=0;i<60;i++){const s=lun()[k];if(i>=LS[s]&&i<LS[s]+LDUR){if(!G.volv.includes(k)){const n=LN.filter(([q])=>i>=LS[lun()[q]]&&i<LS[lun()[q]]+LDUR).length;l+=1-(n<=1?.7:n===2?.55:.35)}}}return a+l},0);return t/(60*LN.length)}
+const crewNow=()=>'';
+function mkLine(){const x=40,w=640,y0=34;let h='<svg viewBox="0 0 700 '+(y0+LN.length*22+22)+'" width="100%" role="img" aria-label="Escala de almoço por linha"><rect width="700" height="'+(y0+LN.length*22+22)+'" fill="var(--panel2)"/>';
+ for(let i=0;i<=8;i++){const t=360+i*60,xx=60+i*(w-20)/8.34;h+='<line x1="'+xx+'" x2="'+xx+'" y1="'+(y0-6)+'" y2="'+(y0+LN.length*22)+'" stroke="var(--line)"/><text x="'+xx+'" y="'+(y0-12)+'" text-anchor="middle" font-size="10" fill="var(--mute)" font-family="IBM Plex Mono,monospace">'+String(Math.floor(t/60)%24).padStart(2,'0')+':00</text>'}
+ const X=tick=>60+tick*(w-20)/60;
+ LN.forEach(([k,nm],i)=>{const y=y0+i*22,s=lun()[k],cv=G.volv.includes(k);h+='<text x="4" y="'+(y+14)+'" font-size="11" fill="var(--fg)" font-family="IBM Plex Sans,sans-serif">'+nm+'</text><rect x="'+X(0)+'" y="'+(y+4)+'" width="'+(X(60)-X(0))+'" height="12" fill="var(--line)" opacity=".5"/><rect x="'+X(LS[s])+'" y="'+(y+2)+'" width="'+(X(LS[s]+LDUR)-X(LS[s]))+'" height="16" fill="'+(cv?'var(--ok)':'var(--accent)')+'"/>'});
+ const nx=X(G.t%DAY);h+='<line x1="'+nx+'" x2="'+nx+'" y1="'+(y0-6)+'" y2="'+(y0+LN.length*22+4)+'" stroke="var(--bad)" stroke-width="2"/><text x="60" y="'+(y0+LN.length*22+16)+'" font-size="10" fill="var(--mute)" font-family="IBM Plex Mono,monospace">Verde: com volante, sem queda de produção · Amarelo: sem cobertura</text></svg>';return h}
+function lunchPane(){lun();const loss=lunchLoss();
+ return '<div class="box"><h2>Escala de almoço por linha</h2><div class="mut">Cada linha almoça por 1 hora em um horário próprio. Linhas que almoçam juntas perdem mais produção. Um <b>volante de almoço</b> ('+R$(150)+' por dia) cobre a linha e ela não reduz nada.</div>'+mkLine()+
+ '<div class="row"><span>Perda de produção no almoço</span><b class="num '+(loss>.05?'bad':'good')+'">'+(loss*100).toFixed(1).replace('.',',')+'%</b></div><div class="tw"><table><thead><tr><th>Linha</th><th>Horário do almoço</th><th>Volante</th></tr></thead><tbody>'+LN.map(([k,nm])=>'<tr><td>'+nm+'</td><td>'+LSH.map((h,i)=>tog(btn('lun',k+':'+i,h,0,'sm'),lun()[k]===i)).join(' ')+'</td><td>'+tog(btn('volv',k,G.volv.includes(k)?'Cobrindo':'Sem volante',0,'sm'),G.volv.includes(k))+'</td></tr>').join('')+'</tbody></table></div><div class="chips">'+btn('lunauto',0,'Organizar escala automaticamente',0,'sm pri')+'</div></div>'}
+function crewPane(){const st=G.inj.length+G.col.length+G.mon.length+G.qa.length+G.emb.length,hc=Math.round(8*st);
+ const rows=[['1º turno','06:00 às 14:20','Produção',hc,'Sempre ativo',null],['Administrativo','08:00 às 17:00','Comercial, compras, RH e qualidade (escritório)',10+G.inj.length,G.adm?'Ativo':'Desligado','adm'],['2º turno','14:20 às 22:40','Produção',hc,G.shifts>=2?'Ativo':'Desligado',2],['3º turno','22:40 às 07:00','Produção',hc,G.shifts>=3?'Ativo':'Desligado',3]];
+ return '<div class="box"><h2>Turnos da fábrica</h2><div class="mut">O administrativo atende o comercial e o escritório: com ele ligado chegam 25% mais propostas de clientes. O 2º e o 3º turno dobram e triplicam a capacidade, com mais cansaço e risco de acidente.</div><div class="tw"><table><thead><tr><th>Turno</th><th>Horário</th><th>Equipe</th><th>Pessoas</th><th>Situação</th><th></th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+r[0]+'</td><td class="num">'+r[1]+'</td><td>'+r[2]+'</td><td class="num">'+r[3]+'</td><td>'+r[4]+'</td><td>'+(r[5]===null?'':r[5]==='adm'?tog(btn('adm',0,G.adm?'Desligar':'Ligar',0,'sm'),G.adm):tog(btn('shift',r[5]===2?(G.shifts>=2?1:2):(G.shifts>=3?2:3),G.shifts>=r[5]?'Desligar':'Ligar',r[5]===3&&G.shifts<2,'sm'),G.shifts>=r[5]))+'</td></tr>').join('')+'</tbody></table></div></div>'}
+{const rp=rhPane;rhPane=function(){return rp()+crewPane()+lunchPane()}}
+{const A4=A;A=function(act,a){if(act==='lun'){const[k,i]=a.split(':');lun()[k]=+i;return render()}if(act==='volv'){lun();const i=G.volv.indexOf(a);if(i>=0)G.volv.splice(i,1);else G.volv.push(a);return render()}if(act==='lunauto'){const L=lun();LN.forEach(([k],i)=>L[k]=i);sfx('ok');say('Escala de almoço organizada: cada linha almoça em um horário diferente.');return render()}if(act==='adm'){G.adm=!G.adm;return render()}return A4(act,a)}}
+{const sr=stR;stR=function(k,p){return sr(k,p)*(LZ[k]?lunchF(k):1)}}
+{const r2=render;render=function(){r2();try{$('k-clock').textContent+=' · '+crewNow()}catch(e){}}}
+
+/* ===== Café ===== */
+const CS=[14,18,21,24,28],CSH=['08:00','08:30','09:00','09:30','10:00'],CDUR=2;
+function cof(){if(!G.cafe)G.cafe={inj:0,col:1,mon:2,qa:3,emb:4};return G.cafe}
+let inCafe=k=>{const tt=G.t%DAY,s=cof()[k];return tt>=CS[s]&&tt<CS[s]+CDUR};
+function cafeF(k){if(!inCafe(k))return 1;if(G.volv.includes(k))return 1;const n=LN.filter(([q])=>inCafe(q)).length;return n<=1?.85:n===2?.7:.5}
+function cafeLoss(){let t=0;for(let i=0;i<60;i++){const n=LN.filter(([q])=>i>=CS[cof()[q]]&&i<CS[cof()[q]]+CDUR);n.forEach(([q])=>{if(!G.volv.includes(q))t+=1-(n.length<=1?.85:n.length===2?.7:.5)})}return t/(60*LN.length)}
+function cafePane(){cof();const l=cafeLoss();return '<div class="box"><h2>Horário de café por linha</h2><div class="mut">Pausa de cerca de 17 minutos, uma por linha. O volante de almoço também cobre o café.</div><div class="row"><span>Perda de produção no café</span><b class="num '+(l>.02?'bad':'good')+'">'+(l*100).toFixed(1).replace('.',',')+'%</b></div><div class="tw"><table><thead><tr><th>Linha</th><th>Horário do café</th></tr></thead><tbody>'+LN.map(([k,nm])=>'<tr><td>'+nm+'</td><td>'+CSH.map((h,i)=>tog(btn('caf',k+':'+i,h,0,'sm'),cof()[k]===i)).join(' ')+'</td></tr>').join('')+'</tbody></table></div></div>'}
+{const lp=lunchPane;lunchPane=function(){return lp()+cafePane()}}
+{const A5=A;A=function(act,a){if(act==='caf'){const[k,i]=a.split(':');cof()[k]=+i;return render()}if(act==='lunauto'){const r=A5(act,a);const C=cof();LN.forEach(([k],i)=>C[k]=i);return render()}return A5(act,a)}}
+{const sr=stR;stR=function(k,p){return sr(k,p)*(LZ[k]?cafeF(k):1)}}
+{const lf=lunchLoss;lunchLoss=function(){return lf()+cafeLoss()}}
+{const ef=effects;effects=function(t){ef(t);LN.forEach(([k])=>{if(inCafe(k)&&!inLunch(k)){const[ox,oy]=ZP[LZ[k]];rect(ox+8,oy+8,60,16,G.volv.includes(k)?C.ok:C.info);txt('CAFÉ',ox+38,oy+20,9,'#000','center')}})}}
+
+/* ===== Relógio de 24h e turnos reais (8h trabalhadas) ===== */
+const TKH=2.5;/* ticks por hora: 60 ticks = 24h, dia começa às 06:00 */
+const CRW=[{id:1,n:'1º turno',s:0,eff:1},{id:2,n:'2º turno',s:24.5,eff:.95},{id:3,n:'3º turno',s:40,eff:.9}],CLEN=24.5,ADM={s:5,n:'Administrativo'};
+const LOF=[4.5,5,5.5,6,6.5].map(h=>h*TKH),LDU=1*TKH,COF=[2,2.5,3,3.5,4].map(h=>h*TKH),CDU=.4*TKH,C2=5.5*TKH;
+const inR=(tt,s,d)=>{let x=(tt-s)%60;if(x<0)x+=60;return x<d};
+const clk=tt=>{const m=Math.floor(360+tt*24)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
+const crewOn=()=>CRW.filter(c=>c.id<=G.shifts);
+function brkNow(c,k,tt){const ls=c.s+LOF[lun()[k]],cs=c.s+COF[cof()[k]];return inR(tt,ls,LDU)||inR(tt,cs,CDU)||inR(tt,cs+C2,CDU)}
+function crewF(k,tt){lun();cof();tt=tt===undefined?G.t%DAY:tt;let best=0,nb=0;const cv=G.volv.includes(k);
+ crewOn().forEach(c=>{if(!inR(tt,c.s,CLEN))return;const b=brkNow(c,k,tt);if(!b||cv)best=Math.max(best,c.eff);else nb=1});
+ return best*3.6}
+function breakNow(k){const tt=G.t%DAY;return crewOn().some(c=>inR(tt,c.s,CLEN)&&brkNow(c,k,tt))&&crewF(k)===0}
+function flowF(){const n=LN.filter(([k])=>breakNow(k)).length;return 1-.06*Math.max(0,n-1)}
+inLunch=function(k){const tt=G.t%DAY;return crewOn().some(c=>inR(tt,c.s,CLEN)&&inR(tt,c.s+LOF[lun()[k]],LDU))};
+inCafe=function(k){const tt=G.t%DAY;return crewOn().some(c=>inR(tt,c.s,CLEN)&&(inR(tt,c.s+COF[cof()[k]],CDU)||inR(tt,c.s+COF[cof()[k]]+C2,CDU)))};
+lunchF=function(){return 1};cafeF=function(){return 1};
+{const sr2=stR;stR=function(k,p){const b=sr2(k,p);return LZ[k]?b*crewF(k)*flowF():b*3*(crewF('col')>0||crewF('inj')>0?1:0)}}
+function dayLoss(){let full=0,real=0;for(let t=0;t<60;t++)LN.forEach(([k])=>{crewOn().forEach(c=>{});const act=crewOn().filter(c=>inR(t,c.s,CLEN));if(!act.length)return;const bestAll=Math.max(...act.map(c=>c.eff));full+=bestAll;real+=crewF(k,t)/3});return full?1-real/full:0}
+lunchLoss=function(){return dayLoss()};
+function crewTL(){const W=660,x0=70,X=t=>x0+(t%60)*(W/60);let rows=[['1º turno',0,'var(--accent)'],['Administrativo',ADM.s,'var(--info)'],['2º turno',24.5,'var(--ok)'],['3º turno',40,'var(--mute)']];
+ let h='<svg viewBox="0 0 740 '+(36+rows.length*20+LN.length*18+16)+'" width="100%" role="img" aria-label="Linha do tempo de 24 horas dos turnos e pausas"><rect width="740" height="'+(36+rows.length*20+LN.length*18+16)+'" fill="var(--panel2)"/>';
+ for(let i=0;i<=12;i++){const xx=x0+i*W/12;h+='<line x1="'+xx+'" x2="'+xx+'" y1="22" y2="'+(36+rows.length*20+LN.length*18)+'" stroke="var(--line)"/><text x="'+xx+'" y="16" text-anchor="middle" font-size="9" fill="var(--mute)" font-family="IBM Plex Mono,monospace">'+String((6+i*2)%24).padStart(2,'0')+'h</text>'}
+ const seg=(s,d,y,hh,f,o)=>{const e=s+d;let o2='';if(e<=60)return '<rect x="'+X(s)+'" y="'+y+'" width="'+(d*W/60)+'" height="'+hh+'" fill="'+f+'" opacity="'+(o||1)+'"/>';return '<rect x="'+X(s)+'" y="'+y+'" width="'+((60-s)*W/60)+'" height="'+hh+'" fill="'+f+'" opacity="'+(o||1)+'"/><rect x="'+x0+'" y="'+y+'" width="'+((e-60)*W/60)+'" height="'+hh+'" fill="'+f+'" opacity="'+(o||1)+'"/>'};
+ rows.forEach(([n,s,f],i)=>{const y=28+i*20,on=n==='Administrativo'?G.adm:(n==='1º turno'||(n==='2º turno'&&G.shifts>=2)||(n==='3º turno'&&G.shifts>=3));h+='<text x="4" y="'+(y+13)+'" font-size="10" fill="var(--fg)" font-family="IBM Plex Sans,sans-serif">'+n+'</text>'+seg(s,CLEN,y+2,14,f,on?.9:.18)});
+ LN.forEach(([k,nm],i)=>{const y=36+rows.length*20+i*18;h+='<text x="4" y="'+(y+12)+'" font-size="10" fill="var(--fg)" font-family="IBM Plex Sans,sans-serif">'+nm+'</text><rect x="'+x0+'" y="'+(y+3)+'" width="'+W+'" height="8" fill="var(--line)" opacity=".4"/>';crewOn().forEach(c=>{h+=seg(c.s+LOF[lun()[k]],LDU,y+1,12,G.volv.includes(k)?'var(--ok)':'var(--bad)');[0,C2].forEach(o=>h+=seg(c.s+COF[cof()[k]]+o,CDU,y+3,8,G.volv.includes(k)?'var(--ok)':'var(--info)'))})});
+ const nx=X(G.t%DAY);h+='<line x1="'+nx+'" x2="'+nx+'" y1="22" y2="'+(36+rows.length*20+LN.length*18)+'" stroke="var(--bad)" stroke-width="2"/><text x="'+x0+'" y="'+(36+rows.length*20+LN.length*18+12)+'" font-size="9" fill="var(--mute)" font-family="IBM Plex Mono,monospace">Almoço: bloco alto · Café: bloco baixo · Verde: coberto por volante · Vermelho/azul: linha parada</text></svg>';return h}
+crewPane=function(){const hc=Math.round(8*(G.inj.length+G.col.length+G.mon.length+G.qa.length+G.emb.length));
+ const rows=[['1º turno','06:00 às 15:48','Produção',hc,'Sempre ativo',null],['Administrativo','08:00 às 17:48','Comercial, compras, RH e qualidade',10+G.inj.length,G.adm?'Ativo':'Desligado','adm'],['2º turno','15:48 às 01:36','Produção',hc,G.shifts>=2?'Ativo':'Desligado',2],['3º turno','22:00 às 07:48','Produção',hc,G.shifts>=3?'Ativo':'Desligado',3]];
+ return '<div class="box"><h2>Turnos da fábrica · 24 horas</h2><div class="mut">Cada turno tem 8 horas trabalhadas, 1 hora de almoço e 48 minutos de café (2 pausas), somando 9h48. O relógio roda 24 horas. Sem turno ativo a linha para. Com o administrativo ligado chegam mais propostas de clientes no horário comercial.</div>'+crewTL()+'<div class="tw"><table><thead><tr><th>Turno</th><th>Horário</th><th>Equipe</th><th>Pessoas</th><th>Situação</th><th></th></tr></thead><tbody>'+rows.map(r=>'<tr><td>'+r[0]+'</td><td class="num">'+r[1]+'</td><td>'+r[2]+'</td><td class="num">'+r[3]+'</td><td>'+r[4]+'</td><td>'+(r[5]===null?'':r[5]==='adm'?tog(btn('adm',0,G.adm?'Desligar':'Ligar',0,'sm'),G.adm):tog(btn('shift',r[5]===2?(G.shifts>=2?1:2):(G.shifts>=3?2:3),G.shifts>=r[5]?'Desligar':'Ligar',r[5]===3&&G.shifts<2,'sm'),G.shifts>=r[5]))+'</td></tr>').join('')+'</tbody></table></div></div>'}
+lunchPane=function(){lun();cof();const loss=dayLoss();
+ return '<div class="box"><h2>Almoço e café por linha</h2><div class="mut">Horários do 1º turno; nos outros turnos acompanham a hora de entrada. Quando a linha para para o almoço ou café, ela só continua se outro turno estiver cobrindo ou se houver um <b>volante</b> ('+R$(150)+' por dia). Linhas paradas ao mesmo tempo também atrasam as demais.</div><div class="row"><span>Produção perdida em pausas</span><b class="num '+(loss>.05?'bad':'good')+'">'+(loss*100).toFixed(1).replace('.',',')+'%</b></div><div class="tw"><table><thead><tr><th>Linha</th><th>Almoço (1h)</th><th>Café (2 × 24 min)</th><th>Volante</th></tr></thead><tbody>'+LN.map(([k,nm])=>'<tr><td>'+nm+'</td><td>'+LOF.map((o,i)=>tog(btn('lun',k+':'+i,clk(Math.round(o)),0,'sm'),lun()[k]===i)).join(' ')+'</td><td>'+COF.map((o,i)=>tog(btn('caf',k+':'+i,clk(Math.round(o))+'/'+clk(Math.round(o+C2)),0,'sm'),cof()[k]===i)).join(' ')+'</td><td>'+tog(btn('volv',k,G.volv.includes(k)?'Cobrindo':'Sem volante',0,'sm'),G.volv.includes(k))+'</td></tr>').join('')+'</tbody></table></div><div class="chips">'+btn('lunauto',0,'Organizar escala automaticamente',0,'sm pri')+'</div></div>'}
+{const ms=meUpd;}
+{const r3=render;render=function(){r3();try{const tt=G.t%DAY,on=crewOn().filter(c=>inR(tt,c.s,CLEN)).map(c=>c.n.replace(' turno','T'));if(G.adm&&inR(tt,ADM.s,CLEN))on.push('Adm');$('k-clock').textContent=clk(tt)+' · '+(on.length?on.join(' + '):'sem turno')}catch(e){}}}
+
+$('vol').addEventListener('input',e=>{vol=e.target.value/100;if(MG)MG.gain.value=vol});
+G=load()||fresh();G.speed=0;theme();render();requestAnimationFrame(loop);
+(G.t>0?(()=>{$('modal').hidden=true;setSpeed(1)})():modal('intro'));
+
+
+/* ===== MODO ONLINE ===== */
+(function(){
+let ws=null,YOU=null,ST=null,TOK=null,ADM=null,ONL=[],CHAT=[],ready=false,authed=false;
+const el=(h)=>{const d=document.createElement('div');d.innerHTML=h;return d.firstElementChild};
+const st=document.createElement('style');st.textContent='[hidden]{display:none!important}#olL{position:fixed;inset:0;z-index:60;background:var(--bg);display:grid;place-items:center;padding:16px}#olL .card{background:var(--panel);border:2px solid var(--accent);padding:20px;max-width:420px;width:100%}#olL input{width:100%;margin:4px 0 10px;padding:8px;font:inherit;border:1px solid var(--line);background:var(--panel2);color:var(--fg)}#olL h2{margin:0 0 6px}#olB .ol-r{display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px}#olC{max-height:150px;overflow:auto;font-size:13px}#olC div{padding:2px 0}#olC .sys{color:var(--mute)}#olC .dono{color:var(--accent);font-weight:700}#olI{width:100%;padding:6px;font:inherit;border:1px solid var(--line);background:var(--panel2);color:var(--fg)}#admB{margin-left:6px}';document.head.appendChild(st);
+const login=el('<div id="olL"><div class="card"><h2>Fábrica de Retrovisores · Online</h2><p class="mut">Entre com seu nome e um PIN, ou crie sua conta. O dono da empresa aprova as contratações.</p><label>Nome<input id="olN" maxlength="20" autocomplete="username"></label><label>PIN (4 ou mais caracteres)<input id="olP" type="password" autocomplete="current-password"></label><div class="chips"><button class="btn pri" data-act="olin" data-a="login">Entrar</button><button class="btn" data-act="olin" data-a="register">Criar conta</button></div><p id="olE" class="bad" role="alert"></p></div></div>');
+document.body.appendChild(login);
+[$('olN'),$('olP')].forEach(i=>i.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')A('olin','login')}));
+const box=el('<div class="box" id="olB"><h2>Equipe online</h2><div id="olW"></div><h2 style="margin-top:10px">Chat da empresa</h2><div id="olC"></div><input id="olI" placeholder="Mensagem e Enter" maxlength="200" aria-label="Chat"></div>');
+document.querySelector('aside').appendChild(box);
+$('olI').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'&&e.target.value.trim()){S({t:'chat',text:e.target.value});e.target.value=''}});
+function S(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))}
+function connect(){ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
+ ws.onopen=()=>{try{const t=JSON.parse(localStorage.getItem('fabrica-online'));if(t&&t.token)S({t:'token',name:t.name,token:t.token})}catch(e){}};
+ ws.onclose=()=>{$('olE').textContent='Conexão perdida. Tentando reconectar...';login.hidden=false;authed=false;setTimeout(connect,2000)};
+ ws.onmessage=ev=>{const m=JSON.parse(ev.data);
+  if(m.t==='auth'){if(!m.ok){$('olE').textContent=m.err||'Erro';return}authed=true;TOK={name:m.name,token:m.token};try{localStorage.setItem('fabrica-online',JSON.stringify(TOK))}catch(e){}login.hidden=true;$('olE').textContent=''}
+  else if(m.t==='deny'){showToast(m.msg);sfx('bad')}
+  else if(m.t==='state'){const tab=G.tab||'fab';G=m.G;G.tab=tab;YOU=m.you;ADM=m.admin||null;ONL=m.online;CHAT=m.chat;G.me=YOU.me;apply()}}}
+function apply(){const md=$('modal');
+ if(!ready){ready=true;md.hidden=true}
+ if(YOU.role!=='owner'&&!YOU.me&&!YOU.pending&&md.hidden&&!window.__admOpen){RH.step=RH.step==='res'||RH.step==='vagas'?RH.step:'inicio';if(!RH.cv||RH.step==='inicio')RH.step='inicio';rhShow()}
+ if(YOU.me&&!md.hidden&&/Processo seletivo|Vagas abertas|Seu currículo|Aprovado|Pré-aprovado|Não foi desta vez|Enviar currículo/.test(md.textContent)&&!window.__admOpen)md.hidden=true;
+ render();ui()}
+function ui(){$('olW').innerHTML=ONL.map(u=>'<div class="ol-r"><b>'+esc(u.name)+(u.role==='owner'?' · DONO':'')+'</b><span class="mut">'+esc(u.vn||(u.role==='owner'?'Dono da empresa':'Candidato(a)'))+'</span></div>').join('')||'<div class="mut">Ninguém online.</div>';
+ $('olC').innerHTML=CHAT.map(c=>'<div class="'+(c.from==='DONO'?'dono':c.sys?'sys':'')+'"><b>'+esc(c.from)+':</b> '+esc(c.text)+'</div>').join('');$('olC').scrollTop=1e6;
+ let b=$('admB');if(YOU.role==='owner'){if(!b){b=document.createElement('button');b.id='admB';b.setAttribute('data-act','adm');b.textContent='Painel do dono';document.querySelector('header .ctl').appendChild(b)}}
+ if(window.__admOpen&&YOU.role==='owner')admRender();
+ const w=$('funcs');if(w&&YOU.role==='owner'){w.hidden=false;w.innerHTML='<h2>Dono da empresa</h2><div class="mut">Você controla velocidade, vagas, contratações, avisos e reinício pelo Painel do dono. Pode usar todas as funções da fábrica.</div>'}
+ else if(w&&!YOU.me){w.hidden=false;w.innerHTML='<h2>'+(YOU.pending?'Candidatura em análise':'Sem cargo')+'</h2><div class="mut">'+(YOU.pending?'Aguarde o dono aprovar a sua contratação. Enquanto isso você pode acompanhar a fábrica.':'Envie um currículo para uma vaga aberta.')+'</div>'+(YOU.pending?'':'<button class="btn pri sm" data-act="rh" data-a="inicio">Abrir vagas</button>')}}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const LOCAL=['tab','snd','mus','help','close','dismiss','rh','olin','adm','ol','vol'];
+{const A0=A;A=function(act,a){
+ if(act==='olin'){S({t:a,name:$('olN').value,pin:$('olP').value});return}
+ if(act==='adm'){window.__admOpen=true;return admRender()}
+ if(act==='ol')return olAct(a);
+ if(act==='close'&&window.__admOpen){window.__admOpen=false;$('modal').hidden=true;return}
+ if(LOCAL.includes(act))return A0(act,a);
+ if(act==='speed'){if(YOU&&YOU.role==='owner')S({t:'speed',s:+a});else showToast('Só o dono controla a velocidade.');return}
+ if(YOU&&YOU.role!=='owner'&&!YOU.me){showToast('Você ainda não foi contratado(a).');return}
+ if(!canDo(act,a)){showToast(denyMsg(act,a));sfx('bad');return}
+ S({t:'act',act,a});sfx('click')}}
+setSpeed=function(s){if(YOU&&YOU.role==='owner')S({t:'speed',s})};pause=function(){if(YOU&&YOU.role==='owner')S({t:'speed',s:0})};
+{const ra=rhAct;rhAct=async function(a){if(a==='assinar'){S({t:'apply',cv:RH.cv,vaga:RH.res.v.id});$('modal').hidden=true;RH.step='inicio';return}return ra(a)}}
+{const mu=meUpd;meUpd=function(){const m=G.me;if(m){const d=G.day;G.day=m.lvl*8+1;try{mu()}finally{G.day=d}}else mu()}}
+function admRender(){const m=$('modal');m.hidden=false;const A_=ADM||{apps:[],users:[]};
+ m.innerHTML='<div role="dialog" aria-modal="true" style="max-width:820px"><h2>Painel do dono</h2><div class="chips"><span class="mut">Velocidade:</span>'+[[0,'Pausar'],[1,'1x'],[3,'3x'],[8,'8x']].map(([s,t])=>'<button class="btn sm" aria-pressed="'+(G.speed===s)+'" data-act="ol" data-a="speed:'+s+'">'+t+'</button>').join('')+'</div>'+
+ '<h3>Candidaturas pendentes ('+A_.apps.length+')</h3>'+(A_.apps.length?A_.apps.map(a=>'<div class="ord"><h3>'+esc(a.cv.n)+' · '+esc(a.vn)+' <span class="mut">('+esc(a.user)+')</span></h3><div class="mut">Nota '+a.sc+'/100 · '+ESC[a.cv.esc]+' · '+a.cv.exp+' anos · '+a.cv.sk.map(s=>SKN[s]).join(', ')+'</div><div class="mut">'+esc((a.cv.t||'').slice(0,240))+'</div><div class="row"><button class="btn sm pri" data-act="ol" data-a="approve:'+a.id+'">Contratar</button><button class="btn sm" data-act="ol" data-a="reject:'+a.id+'">Recusar</button></div></div>').join(''):'<div class="mut">Nenhuma candidatura.</div>')+
+ '<h3>Pessoas</h3>'+A_.users.filter(u=>u.role!=='owner').map(u=>'<div class="row"><span><b>'+esc(u.name)+'</b> '+(u.on?'<span class="good">online</span>':'<span class="mut">offline</span>')+' · '+(u.me?esc((u.me.mgr?'Gerente · ':'')+u.me.s)+(u.me.mgr?'':' · nível '+u.me.lvl):'sem cargo')+'</span><span>'+(u.me?(u.me.mgr?'<button class="btn sm" data-act="ol" data-a="demote:'+esc(u.name)+'">Tirar gerência</button>':'<button class="btn sm" data-act="ol" data-a="manager:'+esc(u.name)+'">Promover a gerente</button>')+' <button class="btn sm" data-act="ol" data-a="fire:'+esc(u.name)+'">Desligar</button>':'')+'</span></div>').join('')+
+ '<h3>Vagas abertas</h3><div class="grid2">'+VG.map(v=>'<div class="row"><span>'+v.n+'</span><span><button class="btn sm" data-act="ol" data-a="vaga:'+v.id+':-1">−</button> <b class="num">'+((G.vagas&&G.vagas[v.id])||0)+'</b> <button class="btn sm" data-act="ol" data-a="vaga:'+v.id+':1">+</button></span></div>').join('')+'</div>'+
+ '<h3>Aviso para todos</h3><input id="admT" maxlength="200" style="width:100%" placeholder="Mensagem"><div class="chips"><button class="btn sm pri" data-act="ol" data-a="announce">Enviar aviso</button><button class="btn sm" data-act="ol" data-a="reset">Reiniciar empresa</button><button class="btn" data-act="close">Fechar</button></div></div>'}
+function olAct(a){const[k,x,y]=a.split(':');
+ if(k==='speed')S({t:'speed',s:+x});else if(k==='approve'||k==='reject')S({t:k,id:+x});else if(k==='manager'||k==='demote'||k==='fire')S({t:'role',op:k,user:x});
+ else if(k==='vaga')S({t:'vaga',id:x,d:+y});else if(k==='announce'){const t=$('admT').value.trim();if(t){S({t:'announce',text:t});$('admT').value=''}}
+ else if(k==='reset'){if(prompt('Isto apaga a fábrica, as contratações e os cargos. Digite REINICIAR para confirmar.')==='REINICIAR')S({t:'reset',confirm:'REINICIAR'})}}
+connect();
+})();
+
+</script>
