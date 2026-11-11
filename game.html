@@ -1,5 +1,6 @@
 <title>Fábrica de Retrovisores</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;600&display=swap">
 <style>
 /* Layout: barra de comando fixa no topo; linha de produção em colunas (setores 01 a 07) ao lado da carteira de pedidos e do registro. */
@@ -841,6 +842,46 @@ lunchPane=function(){lun();cof();const loss=dayLoss();
  return '<div class="box"><h2>Almoço e café por linha</h2><div class="mut">Horários do 1º turno; nos outros turnos acompanham a hora de entrada. Quando a linha para para o almoço ou café, ela só continua se outro turno estiver cobrindo ou se houver um <b>volante</b> ('+R$(150)+' por dia). Linhas paradas ao mesmo tempo também atrasam as demais.</div><div class="row"><span>Produção perdida em pausas</span><b class="num '+(loss>.05?'bad':'good')+'">'+(loss*100).toFixed(1).replace('.',',')+'%</b></div><div class="tw"><table><thead><tr><th>Linha</th><th>Almoço (1h)</th><th>Café (2 × 24 min)</th><th>Volante</th></tr></thead><tbody>'+LN.map(([k,nm])=>'<tr><td>'+nm+'</td><td>'+LOF.map((o,i)=>tog(btn('lun',k+':'+i,clk(Math.round(o)),0,'sm'),lun()[k]===i)).join(' ')+'</td><td>'+COF.map((o,i)=>tog(btn('caf',k+':'+i,clk(Math.round(o))+'/'+clk(Math.round(o+C2)),0,'sm'),cof()[k]===i)).join(' ')+'</td><td>'+tog(btn('volv',k,G.volv.includes(k)?'Cobrindo':'Sem volante',0,'sm'),G.volv.includes(k))+'</td></tr>').join('')+'</tbody></table></div><div class="chips">'+btn('lunauto',0,'Organizar escala automaticamente',0,'sm pri')+'</div></div>'}
 {const ms=meUpd;}
 {const r3=render;render=function(){r3();try{const tt=G.t%DAY,on=crewOn().filter(c=>inR(tt,c.s,CLEN)).map(c=>c.n.replace(' turno','T'));if(G.adm&&inR(tt,ADM.s,CLEN))on.push('Adm');$('k-clock').textContent=clk(tt)+' · '+(on.length?on.join(' + '):'sem turno')}catch(e){}}}
+
+/* ===== Mobile ===== */
+{const st=document.createElement('style');st.textContent=`
+#mnav{display:none}
+@media (pointer:coarse){.btn,.ctl button{min-height:40px}.btn.sm{min-height:36px;padding:4px 10px}.tabbar button{min-height:44px}td .btn,th .btn{min-height:36px}input[type=checkbox]{width:20px;height:20px}select,input,textarea{font-size:16px}}
+@media (max-width:900px){
+ body{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+ body:not(.mv-p) main>aside{display:none}
+ body.mv-p main>.vs{display:none}
+ #mnav{display:grid;grid-template-columns:1fr 1fr;position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--panel);border-top:2px solid var(--accent);padding-bottom:env(safe-area-inset-bottom,0px)}
+ #mnav button{background:none;border:0;border-top:3px solid transparent;margin-top:-2px;min-height:54px;font:700 16px var(--f-d);letter-spacing:.06em;text-transform:uppercase;color:var(--mute);display:flex;align-items:center;justify-content:center;gap:8px}
+ #mnav button[aria-pressed="true"]{color:var(--fg);border-top-color:var(--accent);background:var(--panel2)}
+ #mnav .n{background:var(--accent);color:var(--accent-ink);border-radius:10px;min-width:20px;padding:0 6px;font:700 12px var(--f-m)}
+ #toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))!important;right:12px;left:12px;max-width:none}
+ #daily{bottom:calc(76px + env(safe-area-inset-bottom,0px))!important}
+ .plant canvas{min-width:640px}
+ main{margin-top:10px;gap:12px}
+}
+@media (max-width:640px){
+ header{padding-block:8px!important;gap:8px 12px!important;position:relative!important;top:auto!important}#hlp,#admB{flex:0 0 auto!important;margin-left:0}
+ h1{font-size:19px}h1 small{display:none}
+ .kpi b{font-size:15px}.kpi span{font-size:10px}
+ .goal{flex:1 1 100%!important;order:5}
+ .ctl{flex-wrap:wrap;margin-left:0;width:100%}.ctl button{flex:1 1 auto;padding:6px 8px}
+ #vol{width:100%!important;flex:1 1 100%}
+ #me{width:100%;order:4}#me span{max-width:none!important;white-space:normal!important}
+ .tabbar button{padding:8px 12px;font-size:16px}
+ #modal{padding:8px}#modal>div{padding:14px}#modal h2{font-size:23px}
+ .grid2{grid-template-columns:1fr}
+ .sec h2{font-size:16px}
+ .box>div,.sec .bd{padding:8px 10px}
+ table{font-size:13px}th,td{padding:5px 6px}
+ #olC{max-height:120px}
+}
+`;document.head.appendChild(st);
+const nv=document.createElement('nav');nv.id='mnav';nv.setAttribute('aria-label','Navegação');nv.innerHTML='<button data-act="mv" data-a="j" aria-pressed="true">Fábrica</button><button data-act="mv" data-a="p" aria-pressed="false">Painel <span class="n" id="mnN" hidden></span></button>';document.body.appendChild(nv);
+const mv=p=>{document.body.classList.toggle('mv-p',p);nv.children[0].setAttribute('aria-pressed',String(!p));nv.children[1].setAttribute('aria-pressed',String(p));window.scrollTo(0,0)};
+{const A6=A;A=function(act,a){if(act==='mv'){mv(a==='p');return}return A6(act,a)}}
+let lt=null;{const r6=render;render=function(){r6();try{const n=(G.offers||[]).length,e=$('mnN');e.hidden=!n;e.textContent=n;if(G.tab!==lt){lt=G.tab;const b=document.querySelector('#tabs [aria-selected="true"]');if(b&&b.scrollIntoView)b.scrollIntoView({inline:'center',block:'nearest'})}}catch(e){}}}
+}
 
 $('vol').addEventListener('input',e=>{vol=e.target.value/100;if(MG)MG.gain.value=vol});
 G=load()||fresh();G.speed=0;theme();render();requestAnimationFrame(loop);
