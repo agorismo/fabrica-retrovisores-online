@@ -121,3 +121,25 @@ test('salva de forma atômica ao encerrar',async()=>{
   assert.ok(!fs.existsSync(DATA+'.tmp'));
   // reinicia lendo o arquivo salvo
   await start();const r=await auth('login','carla','1234');assert.equal(r.a.ok,true);r.c.close();});
+
+test('linhas: abastecedor contratado aparece na linha dele e as velocidades novas funcionam',async()=>{
+  const own=(await auth('login','dono',PASS)).c;
+  own.send({t:'vaga',id:'abc',d:1});
+  const e=(await auth('register','eva','1234')).c;
+  e.send({t:'apply',vaga:'abc',cv:{n:'Eva',esc:1,exp:2,sk:['emp','nr12','erp'],t:''}});
+  assert.match((await e.wait(m=>m.t==='deny')).msg,/Candidatura enviada/);
+  const sa=await own.wait(m=>m.t==='state'&&m.admin&&m.admin.apps.some(a=>a.user==='eva'));
+  own.send({t:'approve',id:sa.admin.apps.find(a=>a.user==='eva').id});
+  const st=await e.wait(m=>m.t==='state'&&m.you.me&&m.G.ops&&m.G.ops.some(o=>o.n==='eva'));
+  assert.equal(st.you.me.k,'abs');assert.equal(st.you.me.p,'truck');
+  const op=st.G.ops.find(o=>o.n==='eva');assert.equal(op.k,'abs');assert.equal(op.p,'truck');
+  for(const p of ['car','bus','truck']){assert.ok(st.G.lin[p].cap>0,p);assert.ok(st.G.lin[p].ab>=0)}
+  // velocidades novas: só o dono muda, e valores fora da lista viram pausa
+  for(const s of [0.0167,0.1,1]){own.send({t:'speed',s});assert.equal((await own.wait(m=>m.t==='state'&&m.G.speed===s)).G.speed,s)}
+  own.send({t:'speed',s:0.5});assert.equal((await own.wait(m=>m.t==='state'&&m.G.speed===0)).G.speed,0);
+  e.send({t:'speed',s:8});await new Promise(r=>setTimeout(r,200));
+  own.send({t:'speed',s:0});
+  assert.equal((await own.wait(m=>m.t==='state')).G.speed,0);
+  // quem opera uma vaga de caminhões não aparece como operador das outras linhas no estado
+  assert.ok(!st.G.ops.some(o=>o.n==='eva'&&o.p!=='truck'));
+  own.close();e.close();});

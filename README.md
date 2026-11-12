@@ -21,8 +21,16 @@ Os testes sobem o servidor de verdade numa porta livre, com um arquivo de dados 
 - `engine.js` executa o próprio `game.html` sem navegador (DOM simulado) e roda a simulação no servidor.
 - `server.js` cuida de contas, cargos, permissões, candidaturas e envia o estado por WebSocket.
 - `online.js` é injetado no `game.html` por `build.js` e gera `public/index.html`.
+- `linhas.js` guarda a simulação por linha, o abastecedor e as vagas novas. É um arquivo só que roda no servidor (carregado logo depois do `game.html`) e no navegador (injetado pelo `build.js`). `ui/linhas-ui.js` desenha a aba **Linhas**, o relógio e os botões de velocidade.
 - `ui/icones.js` e `ui/tema.css` são o visual do modo online; `ui/static/` tem o favicon, os ícones do app e o manifest. O `build.js` injeta tudo isso no `public/index.html`.
 - Para atualizar o jogo, substitua `game.html` pela versão nova, rode `npm test` e faça deploy. O visual continua valendo, porque não fica dentro do `game.html`.
+
+## Linhas, abastecimento e tempo
+- **Aba Linhas:** uma coluna por linha (autos, ônibus, caminhões). Cada uma mostra, por setor, quem está operando, a produção de hoje e de ontem e o estoque na saída. Mostra também o nível de abastecimento, os pedidos abertos, os prontos para despachar, o refugo do dia e a produção por pessoa.
+- **Cada um gera a sua linha:** quem está online num setor só dá bônus à linha da sua vaga. Vagas sem linha (injeção, colagem, embalagem, metrologia, auditoria) ajudam todas as linhas do setor. O que um operador produz é creditado a ele; setor sem ninguém roda no automático e aparece como "Automático".
+- **Abastecedor de linha** (uma vaga por linha): leva peças para a beira da linha. Se o nível cai abaixo de 25%, colagem, montagem e embalagem daquela linha desaceleram. Sem abastecedor, só a empilhadeira automática abastece, a 80% do ritmo da linha (melhora com a empilhadeira do almoxarifado). Com um abastecedor, a reposição é mais que o dobro. Sem energia ninguém abastece.
+- **Vagas de qualidade novas:** inspetor de autos, de ônibus e de caminhões (só inspecionam a própria linha), metrologista e auditor IATF. As vagas por linha de qualidade e de abastecimento já nascem abertas num jogo novo; as outras o dono abre no painel. Um jogo salvo antes desta versão ganha as vagas novas sem perder o que já estava fechado.
+- **Tempo mais real:** além de 1x, 3x e 8x, o dono tem **Real** (1 dia de jogo ≈ 1 hora) e **Calmo** (1 dia ≈ 10 minutos). O relógio do topo anda segundo a segundo entre um passo e outro da fábrica, em vez de pular.
 
 ## Visual
 - **Tela de entrada:** um retrovisor refletindo a fábrica e um crachá de acesso que mostra o capacete com as iniciais enquanto a pessoa digita o nome.

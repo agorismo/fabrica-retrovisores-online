@@ -104,7 +104,7 @@ setSpeed=function(s){if(YOU&&YOU.role==='owner')S({t:'speed',s})};pause=function
 /* ---------- painel do dono ----------
    O esqueleto é montado uma vez; a cada atualização só as partes que mudaram são trocadas,
    então o texto do aviso que o dono está digitando não se perde. */
-const VIC={inj:'inj',col:'glue',mon:'gear',qa:'qa',emb:'box',exp:'stack',rec:'rec',fer:'fer',man:'wrench',sc:'boxes'};
+const VIC={inj:'inj',col:'glue',mon:'gear',qa:'qa',emb:'box',exp:'stack',rec:'rec',fer:'fer',man:'wrench',sc:'boxes',abs:'stack'};
 function admRender(){const m=$('modal');m.hidden=false;const A_=ADM||{apps:[],users:[]};
  if(!m.__adm||!m.querySelector('.adm')){m.__adm=1;
   m.innerHTML='<div role="dialog" aria-modal="true" aria-labelledby="admH" class="adm"><div class="adm-hd"><h2 id="admH">'+I('key',26)+'Painel do dono</h2>'+
@@ -116,7 +116,7 @@ function admRender(){const m=$('modal');m.hidden=false;const A_=ADM||{apps:[],us
   '<div class="adm-risk"><div><b>Reiniciar empresa</b><span class="mut">Apaga a fábrica, as contratações e os cargos. As contas continuam.</span></div><button class="btn bad" data-act="ol" data-a="reset">'+I('reset',16)+'Reiniciar</button></div></section></div></div>';
   $('admT').addEventListener('keydown',e=>{if(e.key==='Escape')return;e.stopPropagation();if(e.key==='Enter')olAct('announce')});
   setTimeout(()=>{const x=m.querySelector('.adm-x');if(x)x.focus()},0)}
- put($('admSp'),[[0,'pause','Pausar'],[1,'play','1x'],[3,'ff','3x'],[8,'fff','8x']].map(([s,k,t])=>'<button class="btn sm" aria-pressed="'+(G.speed===s)+'" data-act="ol" data-a="speed:'+s+'">'+I(k,14)+t+'</button>').join(''));
+ put($('admSp'),[[0,'pause','Pausar'],[.0167,'play','Real'],[.1,'play','Calmo'],[1,'play','1x'],[3,'ff','3x'],[8,'fff','8x']].map(([s,k,t])=>'<button class="btn sm" aria-pressed="'+(G.speed===s)+'" data-act="ol" data-a="speed:'+s+'">'+I(k,14)+t+'</button>').join(''));
  put($('admNA'),String(A_.apps.length));
  put($('admApps'),A_.apps.length?A_.apps.map(a=>{const lv=a.sc>=75?'hi':a.sc>=60?'mid':'lo';
   return '<article class="app"><div class="app-hd">'+H('vis',38,ini(a.cv.n))+'<div><b>'+esc(a.cv.n)+'</b><span>'+esc(a.user)+' quer a vaga de '+esc(a.vn)+'</span></div><div class="score '+lv+'" aria-label="Nota '+a.sc+' de 100"><b class="num">'+a.sc+'</b><small>/100</small></div></div>'+

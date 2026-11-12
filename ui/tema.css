@@ -164,3 +164,17 @@ header h1 small{grid-column:2}
  .tabbar::-webkit-scrollbar{display:none}
  .tabbar button{font-size:15px;padding:8px 10px}
  .ol-chat{max-height:220px}}
+
+/* ---------- painel de linhas ---------- */
+.lin-intro{margin-bottom:10px}
+.lin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;align-items:start}
+.lin h2{display:flex;align-items:center;gap:8px}
+.lin h2 .ic{width:26px;height:26px}
+.lin-ab{margin-bottom:10px}
+.lin-who{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-top:6px;font-size:13px}
+.lin-who svg,.lin-op svg{vertical-align:middle;margin-right:4px}
+.lin-op{display:inline-flex;align-items:center;margin-right:8px;white-space:nowrap}
+.lin .lin-sum{display:flex;flex-direction:row;flex-wrap:wrap;gap:4px 16px;margin-top:10px;font-size:13px}.lin .lin-sum span{display:inline}
+.lin-cred{margin-top:8px;font-size:12px}
+.lin .tw{overflow-x:auto}
+@media (max-width:560px){.lin-grid{grid-template-columns:1fr}.lin table{font-size:12px}}

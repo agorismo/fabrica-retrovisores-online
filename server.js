@@ -26,9 +26,11 @@ function mkUser(name,pin,role){const salt=crypto.randomBytes(8).toString('hex');
 /* ---------- motor do jogo (headless) ---------- */
 const ctx=create(fs.readFileSync(path.join(__dirname,'game.html'),'utf8'));
 const R=c=>run(ctx,c);
+/* linhas separadas, abastecedor e vagas de qualidade: o mesmo arquivo roda no navegador (build.js) */
+R(fs.readFileSync(path.join(__dirname,'linhas.js'),'utf8'));
 R("render=function(){};");
 if(DB.G){R('G='+JSON.stringify(DB.G)+';')}else{R("G=fresh();G.speed=0;")}
-R("if(!G.vagas)rhNew();G.staff={exp:false,rec:false};G.me={n:'Equipe',k:'x',p:null,vn:'',s:'',sc:0,b:0,lvl:4,sk:[],id:'x'};if(!G.camp.started)campBegin();setSpeed(G.speed||0);");
+R("if(!G.vagas)rhNew();G.staff={exp:false,rec:false};G.me={n:'Equipe',k:'x',p:null,vn:'',s:'',sc:0,b:0,lvl:4,sk:[],id:'x'};if(!G.camp.started)campBegin();setSpeed(G.speed||0);LINHAS.init();");
 R("var __t0=tick;function FACT_ME(){return {n:'Equipe',k:'x',p:null,vn:'',s:'',sc:0,b:0,lvl:4,sk:[],id:'x'}};tick=function(){__t0();G.me=FACT_ME();if(typeof __AFTER_HOOK==='function')__AFTER_HOOK()};G.me=FACT_ME();");
 const J=s=>JSON.stringify(s);
 /* listas válidas vindas do próprio jogo, usadas para validar o que o cliente manda */
@@ -69,16 +71,18 @@ const wss=new WebSocketServer({server,maxPayload:16*1024});const conns=new Set()
 const send=(w,o)=>{try{if(w.readyState===1)w.send(J(o))}catch(e){}};
 const online=()=>[...new Set([...conns].filter(c=>c.user).map(c=>c.user))];
 const pub=u=>({name:u.name,role:u.role,k:u.me?u.me.k:null,mgr:!!(u.me&&u.me.mgr),vn:u.me?(u.me.mgr?'Gerente · '+u.me.s:u.me.vn):null,lvl:u.me?u.me.lvl:null});
-function staffUpdate(){const on=online().filter(u=>u.me&&!u.pending);const has=ks=>on.some(u=>ks.includes(u.me.k));R('G.staff='+J({exp:has(['exp']),rec:has(['rec','sc'])})+';')}
+function staffUpdate(){const on=online().filter(u=>u.me&&!u.pending);const has=ks=>on.some(u=>ks.includes(u.me.k));R('G.staff='+J({exp:has(['exp']),rec:has(['rec','sc'])})+';G.ops='+J(on.map(u=>({n:u.name,k:u.me.k,p:u.me.p||null,b:u.me.b||0,lvl:u.me.lvl||0,mgr:!!u.me.mgr})))+';')}
 function promoUpdate(){const day=+R('G.day');for(const u of Object.values(DB.users)){if(u.me&&!u.me.mgr){const l=Math.min(4,Math.floor((day-u.me.since)/8));if(l>u.me.lvl){u.me.lvl=l;u.me.b+=.02}}}}
 function adminData(){const on=online();return{apps:DB.apps.filter(a=>a.st==='pending'),users:Object.values(DB.users).map(u=>({name:u.name,role:u.role,me:u.me?{vn:u.me.vn,s:u.me.s,k:u.me.k,lvl:u.me.lvl,mgr:!!u.me.mgr}:null,on:on.includes(u)}))}}
 let lastDay=0;
-function broadcast(){const g=R('JSON.stringify(G)');const day=+R('G.day');if(day!==lastDay){lastDay=day;promoUpdate()}staffUpdate();
+function broadcast(){const day=+R('G.day');if(day!==lastDay){lastDay=day;promoUpdate()}staffUpdate();const g=R('JSON.stringify(G)');
  const on=J(online().map(pub)),ch=J(DB.chat.slice(-30));let adm=null;
  for(const c of conns){if(!c.user)continue;const u=c.user,me=u.role==='owner'?null:(u.me||null);
   if(u.role==='owner'&&!adm)adm=J(adminData());
   c.send_('{"t":"state","G":'+g+',"you":'+J({name:u.name,role:u.role,me,pending:DB.apps.some(a=>a.user===u.name&&a.st==='pending')})+',"online":'+on+',"chat":'+ch+(u.role==='owner'?',"admin":'+adm:'')+'}')}}
 ctx.__AFTER_HOOK=()=>{try{broadcast()}catch(e){console.error('bc',e.message)}};
+/* 0.0167 = tempo realista (1 dia de jogo ≈ 1 h); 0.1 = calmo (1 dia ≈ 10 min) */
+const SPEEDS=[0,0.0167,0.1,1,3,8];
 const ALLOW_BLOCK=new Set(['go','rh','reset','mode','speed','snd','mus','help','close','dismiss','tab','diff']);
 function act(u,name,a){if(u.role!=='owner'&&(!u.me))return 'Você ainda não foi contratado(a).';
  if(typeof name!=='string'||!ACT_RE.test(name)||!validArg(a))return 'Ação inválida.';
@@ -141,9 +145,9 @@ wss.on('connection',(ws,req)=>{ws.send_=s=>{try{if(ws.readyState===1)ws.send(s)}
    else if(m.op==='fire'&&t.me){t.me=null;chat('Sistema',t.name+' foi desligado(a).',true)}
    broadcast();return}
   if(m.t==='vaga'){const id=String(m.id);if(!VAGA_IDS.has(id))return;const d=Math.sign(+m.d||0);R('if(!G.vagas)G.vagas={};G.vagas['+J(id)+']=Math.max(0,Math.min(9,(G.vagas['+J(id)+']||0)+('+d+')));');broadcast();return}
-  if(m.t==='speed'){const s=[0,1,3,8].includes(+m.s)?+m.s:0;R('setSpeed('+s+');');broadcast();return}
+  if(m.t==='speed'){const s=SPEEDS.includes(+m.s)?+m.s:0;R('setSpeed('+s+');');broadcast();return}
   if(m.t==='announce'){const text=String(m.text||'').trim();if(!text)return;chat('DONO',text,true);broadcast();return}
-  if(m.t==='reset'&&m.confirm==='REINICIAR'){R("G=fresh();G.speed=0;rhNew();G.staff={exp:false,rec:false};campBegin();pause();");for(const x of Object.values(DB.users))x.me=null;DB.apps=[];lastDay=0;chat('Sistema','A empresa foi reiniciada pelo dono.',true);save();broadcast();return}
+  if(m.t==='reset'&&m.confirm==='REINICIAR'){R("G=fresh();G.speed=0;rhNew();G.staff={exp:false,rec:false};campBegin();pause();LINHAS.init();");for(const x of Object.values(DB.users))x.me=null;DB.apps=[];lastDay=0;chat('Sistema','A empresa foi reiniciada pelo dono.',true);save();broadcast();return}
   }catch(e){console.error('msg',e)}});
  send(ws,{t:'hello'})});
 /* derruba conexões mortas (celular que perdeu sinal etc.) para a lista de online ficar correta */

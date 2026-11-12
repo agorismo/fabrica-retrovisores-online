@@ -54,7 +54,7 @@ const ui=(k,s,cls)=>svgI(UI[k]||UIC[k]||'',s,cls);
    verde qualidade, laranja logística, cinza visitante (ainda sem cargo). */
 const HELMET={gestao:['#f4f6f7','Gestão'],prod:['#e0a800','Produção'],tec:['#2f7fc1','Manutenção e ferramentaria'],qa:['#1f9a5f','Qualidade'],log:['#e2701f','Logística e compras'],vis:['#9aa5ae','Visitante, sem cargo']};
 function helmetOf(u){if(!u)return 'vis';if(u.role==='owner'||u.mgr)return 'gestao';const k=u.k;if(!k)return 'vis';
- if(['inj','col','mon','emb'].includes(k))return 'prod';if(['man','fer'].includes(k))return 'tec';if(k==='qa')return 'qa';if(['exp','rec','sc'].includes(k))return 'log';return 'prod'}
+ if(['inj','col','mon','emb'].includes(k))return 'prod';if(['man','fer'].includes(k))return 'tec';if(k==='qa')return 'qa';if(['exp','rec','sc','abs'].includes(k))return 'log';return 'prod'}
 function helmetSvg(kind,size,ini){const c=(HELMET[kind]||HELMET.vis)[0];const s=size||32;const y=ini?-3.5:0;
  return '<svg class="hm" width="'+s+'" height="'+s+'" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="#26303a"/><g transform="translate(0 '+y+')">'+
  '<path d="M7 24.5a13 13 0 0 1 26 0z" fill="'+c+'"/>'+
@@ -71,7 +71,7 @@ Object.assign(IC,UIC);
  const h1=document.querySelector('header h1');if(h1&&!h1.querySelector('.logo'))h1.insertAdjacentHTML('afterbegin','<img class="logo" src="/favicon.svg" width="34" height="34" alt="">');})();
 
 /* ---- abas: ícone por seção, desenhado por CSS a partir do mesmo SVG ---- */
-(function(){const T={fab:'factory',est:'boxes',qua:'qa',mod:'mirror',pes:'helmet',nfb:'flag',fin:'money',res:'flask',cli:'hand',mar:'tag',ach:'trophy'};
+(function(){const T={fab:'factory',est:'boxes',qua:'qa',mod:'mirror',pes:'helmet',nfb:'flag',fin:'money',res:'flask',cli:'hand',mar:'tag',ach:'trophy',lin:'stack'};
  const url=k=>'url("data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="#000" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">'+(UI[k]||UIC[k])+'</svg>')+'")';
  const st=document.createElement('style');st.id='tab-icons';
  st.textContent=Object.entries(T).map(([a,k])=>'.tabbar [data-a="'+a+'"]::before{-webkit-mask-image:'+url(k)+';mask-image:'+url(k)+'}').join('');
