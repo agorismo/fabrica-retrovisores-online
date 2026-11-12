@@ -10,11 +10,19 @@ const box=el('<div class="box" id="olB"><h2>Equipe online</h2><div id="olW"></di
 document.querySelector('aside').appendChild(box);
 $('olI').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter'&&e.target.value.trim()){S({t:'chat',text:e.target.value});e.target.value=''}});
 function S(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))}
+/* aviso de reconexão: quem já estava jogando continua vendo a fábrica em vez de voltar à tela de login */
+const bar=el('<div id="olR" role="status" aria-live="polite" hidden style="position:fixed;left:0;right:0;top:0;z-index:70;background:var(--accent);color:#111;text-align:center;font-weight:700;padding:4px 12px;font-size:13px"></div>');
+document.body.appendChild(bar);
+let tries=0;
 function connect(){ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
- ws.onopen=()=>{try{const t=JSON.parse(localStorage.getItem('fabrica-online'));if(t&&t.token)S({t:'token',name:t.name,token:t.token})}catch(e){}};
- ws.onclose=()=>{$('olE').textContent='Conexão perdida. Tentando reconectar...';login.hidden=false;authed=false;setTimeout(connect,2000)};
- ws.onmessage=ev=>{const m=JSON.parse(ev.data);
-  if(m.t==='auth'){if(!m.ok){$('olE').textContent=m.err||'Erro';return}authed=true;TOK={name:m.name,token:m.token};try{localStorage.setItem('fabrica-online',JSON.stringify(TOK))}catch(e){}login.hidden=true;$('olE').textContent=''}
+ ws.onopen=()=>{tries=0;let t=null;try{t=JSON.parse(localStorage.getItem('fabrica-online'))}catch(e){}if(t&&t.token)S({t:'token',name:t.name,token:t.token});else{bar.hidden=true;login.hidden=false}};
+ ws.onclose=()=>{const wait=Math.min(30000,1000*2**tries++)+Math.floor(Math.random()*500);
+  const msg='Conexão perdida. Tentando reconectar em '+Math.round(wait/1000)+' s...';
+  if(authed||ready){bar.textContent=msg;bar.hidden=false}else $('olE').textContent=msg;
+  authed=false;setTimeout(connect,wait)};
+ ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data)}catch(e){return}
+  if(m.t==='auth'){if(!m.ok){$('olE').textContent=m.err||'Erro';if(m.expired){try{localStorage.removeItem('fabrica-online')}catch(e){}bar.hidden=true;login.hidden=false}return}
+   authed=true;TOK={name:m.name,token:m.token};try{localStorage.setItem('fabrica-online',JSON.stringify(TOK))}catch(e){}login.hidden=true;bar.hidden=true;$('olE').textContent=''}
   else if(m.t==='deny'){showToast(m.msg);sfx('bad')}
   else if(m.t==='state'){const tab=G.tab||'fab';G=m.G;G.tab=tab;YOU=m.you;ADM=m.admin||null;ONL=m.online;CHAT=m.chat;G.me=YOU.me;apply()}}}
 function apply(){const md=$('modal');
