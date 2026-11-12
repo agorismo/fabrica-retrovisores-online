@@ -52,17 +52,23 @@ function validArg(a){return a===undefined||a===null||typeof a==='number'&&Number
 /* ---------- rede ---------- */
 let PAGE=null;
 function page(){if(!PAGE)try{PAGE=fs.readFileSync(path.join(__dirname,'public','index.html'))}catch(e){}return PAGE}
+/* ícones do app e manifest: lista fechada, nada de servir caminho arbitrário do disco */
+const STATIC={'/favicon.svg':'image/svg+xml','/icon-192.png':'image/png','/icon-512.png':'image/png','/icon-maskable-512.png':'image/png','/apple-touch-icon.png':'image/png','/manifest.webmanifest':'application/manifest+json'};
+const ASSETS=new Map();
+function asset(u){if(!ASSETS.has(u))try{ASSETS.set(u,fs.readFileSync(path.join(__dirname,'public',u.slice(1))))}catch(e){return null}return ASSETS.get(u)}
 const HDR={'x-content-type-options':'nosniff','referrer-policy':'no-referrer','x-frame-options':'SAMEORIGIN'};
 const server=http.createServer((req,res)=>{const url=(req.url||'/').split('?')[0];
  if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405,HDR);return res.end()}
  if(url==='/health'){res.writeHead(200,{...HDR,'content-type':'text/plain'});return res.end('ok')}
+ if(Object.hasOwn(STATIC,url)){const f=asset(url);if(!f){res.writeHead(404,HDR);return res.end()}
+  res.writeHead(200,{...HDR,'content-type':STATIC[url],'cache-control':'public, max-age=86400'});return res.end(req.method==='HEAD'?undefined:f)}
  if(url!=='/'&&url!=='/index.html'){res.writeHead(404,{...HDR,'content-type':'text/plain; charset=utf-8'});return res.end('não encontrado')}
  const f=page();if(!f){res.writeHead(500,HDR);return res.end('build ausente: rode node build.js')}
  res.writeHead(200,{...HDR,'content-type':'text/html; charset=utf-8','cache-control':'no-cache'});res.end(req.method==='HEAD'?undefined:f)});
 const wss=new WebSocketServer({server,maxPayload:16*1024});const conns=new Set();
 const send=(w,o)=>{try{if(w.readyState===1)w.send(J(o))}catch(e){}};
 const online=()=>[...new Set([...conns].filter(c=>c.user).map(c=>c.user))];
-const pub=u=>({name:u.name,role:u.role,k:u.me?u.me.k:null,vn:u.me?(u.me.mgr?'Gerente · '+u.me.s:u.me.vn):null,lvl:u.me?u.me.lvl:null});
+const pub=u=>({name:u.name,role:u.role,k:u.me?u.me.k:null,mgr:!!(u.me&&u.me.mgr),vn:u.me?(u.me.mgr?'Gerente · '+u.me.s:u.me.vn):null,lvl:u.me?u.me.lvl:null});
 function staffUpdate(){const on=online().filter(u=>u.me&&!u.pending);const has=ks=>on.some(u=>ks.includes(u.me.k));R('G.staff='+J({exp:has(['exp']),rec:has(['rec','sc'])})+';')}
 function promoUpdate(){const day=+R('G.day');for(const u of Object.values(DB.users)){if(u.me&&!u.me.mgr){const l=Math.min(4,Math.floor((day-u.me.since)/8));if(l>u.me.lvl){u.me.lvl=l;u.me.b+=.02}}}}
 function adminData(){const on=online();return{apps:DB.apps.filter(a=>a.st==='pending'),users:Object.values(DB.users).map(u=>({name:u.name,role:u.role,me:u.me?{vn:u.me.vn,s:u.me.s,k:u.me.k,lvl:u.me.lvl,mgr:!!u.me.mgr}:null,on:on.includes(u)}))}}
