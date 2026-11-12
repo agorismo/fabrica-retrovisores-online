@@ -40,7 +40,18 @@ async function auth(t,name,pin,token){const c=await client();c.send({t,name,pin,
 test('HTTP: página, health e 404',async()=>{
   const h=await get('/health');assert.equal(h.body,'ok');
   const p=await get('/');assert.equal(p.status,200);assert.match(p.body,/Enviar candidatura ao dono/);assert.equal(p.headers['x-content-type-options'],'nosniff');
-  assert.equal((await get('/nao-existe')).status,404);});
+  assert.equal((await get('/nao-existe')).status,404);
+  assert.equal((await get('/../server.js')).status,404);});
+
+test('ícones do app, manifest e tema injetados',async()=>{
+  const p=await get('/');
+  assert.match(p.body,/rel="manifest" href="\/manifest.webmanifest"/);
+  assert.match(p.body,/id="tema-online"/);
+  assert.match(p.body,/const FX=\(function/);
+  for(const [u,t] of [['/favicon.svg','image/svg+xml'],['/icon-192.png','image/png'],['/icon-512.png','image/png'],['/apple-touch-icon.png','image/png'],['/manifest.webmanifest','application/manifest+json']]){
+    const r=await get(u);assert.equal(r.status,200,u);assert.equal(r.headers['content-type'],t,u)}
+  const m=JSON.parse((await get('/manifest.webmanifest')).body);
+  assert.ok(m.icons.some(i=>i.purpose==='maskable'));});
 
 test('nomes de protótipo não abrem sessão fantasma',async()=>{
   for(const name of ['constructor','__proto__','toString','hasOwnProperty']){

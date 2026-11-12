@@ -21,7 +21,18 @@ Os testes sobem o servidor de verdade numa porta livre, com um arquivo de dados 
 - `engine.js` executa o próprio `game.html` sem navegador (DOM simulado) e roda a simulação no servidor.
 - `server.js` cuida de contas, cargos, permissões, candidaturas e envia o estado por WebSocket.
 - `online.js` é injetado no `game.html` por `build.js` e gera `public/index.html`.
-- Para atualizar o jogo, substitua `game.html` pela versão nova, rode `npm test` e faça deploy.
+- `ui/icones.js` e `ui/tema.css` são o visual do modo online; `ui/static/` tem o favicon, os ícones do app e o manifest. O `build.js` injeta tudo isso no `public/index.html`.
+- Para atualizar o jogo, substitua `game.html` pela versão nova, rode `npm test` e faça deploy. O visual continua valendo, porque não fica dentro do `game.html`.
+
+## Visual
+- **Tela de entrada:** um retrovisor refletindo a fábrica e um crachá de acesso que mostra o capacete com as iniciais enquanto a pessoa digita o nome.
+- **Capacetes por função**, como no chão de fábrica: branco para gestão (dono e gerentes), amarelo para produção, azul para manutenção e ferramentaria, verde para qualidade, laranja para logística e compras, cinza para quem ainda não tem cargo. Aparecem na equipe online, no chat, no painel do dono e no cartão do jogador.
+- **Ícones** redesenhados para setores, produtos (carro, ônibus, caminhão), controles do topo e abas. Os setores ganham placa amarela com pictograma preto, como sinalização de segurança. As chaves de `IC` são as mesmas do jogo, então o desenho novo aparece em todo lugar.
+- **Painel do dono** em duas colunas, com nota do currículo em barra, vagas com o ícone do setor e uma área separada para reiniciar a empresa. Fecha com Esc e não apaga o aviso que está sendo digitado.
+- **Celular:** controles do topo só com ícone numa linha, abas com rolagem lateral, chat que abre na última mensagem.
+- Funciona no tema claro e no escuro, porque usa só as variáveis de cor do jogo.
+
+Para regerar os PNGs depois de mudar `ui/static/favicon.svg` ou `icon-maskable.svg`, exporte em 180, 192 e 512 px com qualquer editor de SVG ou navegador.
 
 ## Segurança
 - PIN guardado com `scrypt` e sal; hash e token comparados em tempo constante.
