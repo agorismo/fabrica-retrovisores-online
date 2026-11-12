@@ -1,0 +1,16 @@
+{
+  "name": "Fábrica de Retrovisores Online",
+  "short_name": "Fábrica",
+  "description": "Uma fábrica de retrovisores tocada por toda a equipe ao mesmo tempo.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e6e9ec",
+  "theme_color": "#151b20",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
