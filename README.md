@@ -32,6 +32,13 @@ Os testes sobem o servidor de verdade numa porta livre, com um arquivo de dados 
 - **Vagas de qualidade novas:** inspetor de autos, de ônibus e de caminhões (só inspecionam a própria linha), metrologista e auditor IATF. As vagas por linha de qualidade e de abastecimento já nascem abertas num jogo novo; as outras o dono abre no painel. Um jogo salvo antes desta versão ganha as vagas novas sem perder o que já estava fechado.
 - **Tempo mais real:** além de 1x, 3x e 8x, o dono tem **Real** (1 dia de jogo ≈ 1 hora) e **Calmo** (1 dia ≈ 10 minutos). O relógio do topo anda segundo a segundo entre um passo e outro da fábrica, em vez de pular.
 
+## Celular
+- Controles do topo em duas fileiras de botões de 44 px; Real e Calmo aparecem como texto no lugar do ícone. O controle de volume some em telas de toque.
+- Login enxuto, que cabe numa tela só; o painel do dono quebra as velocidades de linha em vez de cortar.
+- A planta da fábrica é larga de propósito e rola de lado, com um aviso embaixo dela.
+- Ao apagar a tela o sistema derruba a conexão. Ao voltar para o app (ou quando a rede volta) o jogo reconecta na hora, e se a conexão estiver morta sem avisar, o `ping`/`pong` detecta em 2,5 s.
+- Testado em 360, 390 e 768 px de largura e na horizontal (844x390), sem rolagem lateral em nenhuma aba.
+
 ## Visual
 - **Tela de entrada:** um retrovisor refletindo a fábrica e um crachá de acesso que mostra o capacete com as iniciais enquanto a pessoa digita o nome.
 - **Capacetes por função**, como no chão de fábrica: branco para gestão (dono e gerentes), amarelo para produção, azul para manutenção e ferramentaria, verde para qualidade, laranja para logística e compras, cinza para quem ainda não tem cargo. Aparecem na equipe online, no chat, no painel do dono e no cartão do jogador.

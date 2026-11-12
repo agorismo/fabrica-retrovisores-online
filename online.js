@@ -49,14 +49,15 @@ function S(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))}
 /* aviso de reconexão: quem já estava jogando continua vendo a fábrica em vez de voltar à tela de login */
 const bar=el('<div id="olR" role="status" aria-live="polite" hidden></div>');
 document.body.appendChild(bar);
-let tries=0;
-function connect(){ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
+let tries=0,rt=null,pg=null;
+function connect(){clearTimeout(rt);ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
  ws.onopen=()=>{tries=0;let t=null;try{t=JSON.parse(localStorage.getItem('fabrica-online'))}catch(e){}if(t&&t.token)S({t:'token',name:t.name,token:t.token});else{bar.hidden=true;login.hidden=false}};
  ws.onclose=()=>{const wait=Math.min(30000,1000*2**tries++)+Math.floor(Math.random()*500);
   const msg='Conexão perdida. Tentando de novo em '+Math.round(wait/1000)+' s.';
   if(authed||ready){bar.innerHTML=I('wifi',16)+'<span>'+msg+'</span>';bar.hidden=false}else $('olE').textContent=msg;
-  authed=false;setTimeout(connect,wait)};
+  authed=false;rt=setTimeout(connect,wait)};
  ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data)}catch(e){return}
+  if(m.t==='pong'){clearTimeout(pg);return}
   if(m.t==='auth'){if(!m.ok){$('olE').textContent=m.err||'Não deu para entrar. Tente de novo.';if(m.expired){try{localStorage.removeItem('fabrica-online')}catch(e){}bar.hidden=true;login.hidden=false}return}
    authed=true;TOK={name:m.name,token:m.token};try{localStorage.setItem('fabrica-online',JSON.stringify(TOK))}catch(e){}login.hidden=true;bar.hidden=true;$('olE').textContent=''}
   else if(m.t==='deny'){showToast(m.msg);sfx('bad')}
@@ -137,5 +138,9 @@ function olAct(a){const[k,x,y]=a.split(':');
  if(k==='speed')S({t:'speed',s:+x});else if(k==='approve'||k==='reject')S({t:k,id:+x});else if(k==='manager'||k==='demote'||k==='fire')S({t:'role',op:k,user:x});
  else if(k==='vaga')S({t:'vaga',id:x,d:+y});else if(k==='announce'){const t=$('admT').value.trim();if(t){S({t:'announce',text:t});$('admT').value='';showToast('Aviso enviado.')}}
  else if(k==='reset'){if(prompt('Isto apaga a fábrica, as contratações e os cargos. Digite REINICIAR para confirmar.')==='REINICIAR')S({t:'reset',confirm:'REINICIAR'})}}
+/* celular: ao apagar a tela o sistema derruba a conexão; ao voltar, reconecta na hora em vez de esperar o próximo intervalo */
+function acorda(){if(document.hidden)return;if(!ws||ws.readyState===WebSocket.CLOSED){tries=0;connect()}else if(ws.readyState===WebSocket.OPEN&&authed){clearTimeout(pg);const w=ws;S({t:'ping'});pg=setTimeout(()=>{if(ws===w){try{w.onclose=null;w.close()}catch(e){}tries=0;connect()}},2500)}}
+document.addEventListener('visibilitychange',acorda);window.addEventListener('online',()=>{tries=0;if(!ws||ws.readyState!==WebSocket.OPEN)connect()});window.addEventListener('pageshow',e=>{if(e.persisted)acorda()});
+
 connect();
 })();

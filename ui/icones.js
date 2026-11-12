@@ -67,7 +67,7 @@ Object.assign(IC,UIC);
 
 /* ---- cabeçalho: ícone + rótulo nos controles (o rótulo some no celular, mas continua para leitores de tela) ---- */
 (function(){const set=(id,k,lbl)=>{const b=$(id);if(!b||b.querySelector('.ic'))return;const t=lbl||b.textContent.trim();b.innerHTML=ui(k,18)+'<span class="lb">'+t+'</span>';b.setAttribute('aria-label',t);b.title=t};
- set('mus','music');set('snd','sound');set('sp0','pause','Pausa');set('sp1','play','1x');set('sp3','ff','3x');set('sp8','fff','8x');set('hlp','help','Ajuda');
+ set('mus','music');set('snd','sound');set('sp0','pause','Pausa');set('spr','play','Real');set('spc','play','Calmo');set('sp1','play','1x');set('sp3','ff','3x');set('sp8','fff','8x');set('hlp','help','Ajuda');
  const h1=document.querySelector('header h1');if(h1&&!h1.querySelector('.logo'))h1.insertAdjacentHTML('afterbegin','<img class="logo" src="/favicon.svg" width="34" height="34" alt="">');})();
 
 /* ---- abas: ícone por seção, desenhado por CSS a partir do mesmo SVG ---- */

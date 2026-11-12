@@ -178,3 +178,57 @@ header h1 small{grid-column:2}
 .lin-cred{margin-top:8px;font-size:12px}
 .lin .tw{overflow-x:auto}
 @media (max-width:560px){.lin-grid{grid-template-columns:1fr}.lin table{font-size:12px}}
+
+/* ---------- celular: toque, controles grandes, login enxuto ---------- */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+button,.btn,[data-act],.tabbar button,#mnav button,select,summary{touch-action:manipulation}
+body{overscroll-behavior-y:contain}
+@media (pointer:coarse){
+ button,.btn{-webkit-user-select:none;user-select:none}
+ .btn.sm{min-height:40px}
+ .seg .btn{min-height:44px}
+ .adm-x{min-width:44px;min-height:44px}
+ table{font-size:13px}
+}
+@media (max-width:640px){
+ /* controles do topo em duas fileiras de alvos de 44 px, em vez de uma de 32 px */
+ header .ctl{flex-wrap:wrap!important;gap:6px!important}
+ header .ctl button{flex:1 0 calc(20% - 6px)!important;min-width:44px!important;min-height:44px!important;padding:6px!important}
+ /* painel do dono: velocidades quebram de linha em vez de cortar o 8x */
+ .seg{flex-wrap:wrap}.seg .btn{flex:1 0 30%}
+ .kpi span{font-size:11px!important}
+ .lin td .un{display:none}
+ .lin table th,.lin table td{padding-inline:6px}
+}
+@media (max-width:900px){
+ /* a planta é larga de propósito; avisa que dá para arrastar */
+ .plant::after{content:"↔ arraste para ver a planta inteira";display:block;position:sticky;left:0;padding:6px 12px;font:500 11px var(--f-m);color:var(--mute);border-top:1px solid var(--line)}
+}
+@media (max-width:700px){
+ #olL{padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));place-items:start center}
+ .ol-art{max-width:120px;margin-bottom:8px}
+ .ol-t{font-size:34px;max-width:none}
+ .ol-sub{font-size:16px;margin:8px 0 14px}
+ .ol-steps{display:none}
+ .ol-badge{padding:0 16px 16px}.ol-bt{margin:0 -16px 14px;font-size:17px}
+ .ol-id{margin-bottom:12px}.ol-id b{font-size:20px}
+ .ol-badge button{min-height:48px}
+}
+@media (max-height:480px) and (orientation:landscape){
+ header{position:static!important}
+ #mnav button{min-height:44px}
+ body{padding-bottom:calc(52px + env(safe-area-inset-bottom,0px))}
+}
+
+/* Real e Calmo não têm ícone próprio: no celular mostram o texto em vez de um triângulo igual ao do 1x */
+@media (max-width:640px){
+ header .ctl #spr svg,header .ctl #spc svg{display:none}
+ header .ctl #spr .lb,header .ctl #spc .lb{position:static;width:auto;height:auto;overflow:visible;clip:auto;font:700 13px var(--f-d);letter-spacing:.04em;text-transform:uppercase}
+}
+@media (pointer:coarse){#modal .btn.sm[aria-label*="vaga"]{min-width:44px;min-height:44px}}
+
+@media (max-width:1000px){header .ctl{flex-wrap:wrap;max-width:100%}}
+@media (pointer:coarse){#vol{display:none!important}}
+@media (max-height:480px) and (orientation:landscape){
+ .tabbar{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.tabbar::-webkit-scrollbar{display:none}
+}

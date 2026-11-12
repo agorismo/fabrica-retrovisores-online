@@ -27,7 +27,7 @@ function linha(p){
  const abast=fe.length?fe.map(o=>H('log',18)+esc(o.n)).join(' '):'<span class="mut">Empilhadeira automática</span>';
  const ab=(G.orders||[]).filter(o=>o.state==='open'&&o.p===p),abQtd=ab.reduce((s,o)=>s+o.qty,0);
  const pronto=G.pack[p]||0;
- const linhas=SETORES.map(([k,n,out,un])=>'<tr><td><b>'+n+'</b></td><td>'+quem(p,k)+'</td><td class="num">'+num(L.day[k])+'</td><td class="num mut">'+num(L.ant[k])+'</td><td class="num">'+num(G[out][p])+' <small class="mut">'+un+'</small></td></tr>').join('');
+ const linhas=SETORES.map(([k,n,out,un])=>'<tr><td><b>'+n+'</b></td><td>'+quem(p,k)+'</td><td class="num">'+num(L.day[k])+'</td><td class="num mut">'+num(L.ant[k])+'</td><td class="num">'+num(G[out][p])+' <small class="mut un">'+un+'</small></td></tr>').join('');
  const cred=Object.entries(L.cr).filter(([,c])=>c.t>=1).sort((a,b)=>b[1].d-a[1].d||b[1].t-a[1].t).slice(0,5);
  return '<section class="box lin"><h2>'+I(p,24)+NOME[p]+'<span class="ol-n" title="Pedidos abertos desta linha">'+ab.length+' pedidos</span></h2>'+
   '<div class="lin-ab"><div class="row"><span>Abastecimento da linha</span><b class="num'+(baixo?' low':'')+'">'+Math.round(abp)+'%</b></div>'+bar(abp,baixo)+
@@ -57,4 +57,6 @@ setInterval(()=>{if(typeof G==='undefined'||!G||!G.speed)return;
 /* botões de velocidade extras */
 {const r=render;render=function(){r();
  [['spr',.0167],['spc',.1]].forEach(([id,s])=>{const b=document.getElementById(id);if(b)b.setAttribute('aria-pressed',String(G.speed===s))})}}
+/* no celular não existe clique */
+if(matchMedia('(pointer:coarse)').matches){const h=document.querySelector('.plant h2 small');if(h)h.textContent=h.textContent.replace('clique','toque')}
 })();
