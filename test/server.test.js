@@ -143,3 +143,9 @@ test('linhas: abastecedor contratado aparece na linha dele e as velocidades nova
   // quem opera uma vaga de caminhões não aparece como operador das outras linhas no estado
   assert.ok(!st.G.ops.some(o=>o.n==='eva'&&o.p!=='truck'));
   own.close();e.close();});
+
+test('celular: o servidor responde ping com pong (usado para reconectar ao reabrir o app)',async()=>{
+  const c=(await auth('register','mobi','1234')).c;
+  c.send({t:'ping'});
+  assert.equal((await c.wait(m=>m.t==='pong')).t,'pong');
+  c.close();});

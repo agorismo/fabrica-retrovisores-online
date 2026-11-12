@@ -118,6 +118,7 @@ wss.on('connection',(ws,req)=>{ws.send_=s=>{try{if(ws.readyState===1)ws.send(s)}
     if(!checkPin(u,String(m.pin||'').slice(0,64))){failLogin(key);return send(ws,{t:'auth',ok:false,err:'Nome ou PIN incorretos.'})}
     FAILS.delete(key);u.token=newToken()}
    announceJoin(u);ws.user=u;send(ws,{t:'auth',ok:true,name:u.name,token:u.token,role:u.role});broadcast();return}
+  if(m.t==='ping')return send(ws,{t:'pong'});
   const u=ws.user;if(!u)return;
   if(m.t==='act'){const r=act(u,m.act,m.a);if(r)send(ws,{t:'deny',msg:r});return}
   if(m.t==='chat'){const text=String(m.text||'').trim();if(!text)return;if(!chatRate())return send(ws,{t:'deny',msg:'Calma, muitas mensagens seguidas.'});chat(u.name,text);broadcast();return}
