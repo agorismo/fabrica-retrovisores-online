@@ -101,3 +101,10 @@ test('um jogo antigo, sem linhas, é atualizado e abre as vagas novas',()=>{
   R('delete G.lin;delete G.lnUse;G.vagas={inj:1,mc:1}');R('tick()');
   assert.ok(R('!!G.lin&&!!G.lin.car&&!!G.lin.bus&&!!G.lin.truck'));
   assert.equal(R('G.vagas.abc'),1);assert.equal(R('G.vagas.qc'),1);assert.equal(R('G.vagas.qm'),0);});
+
+test('o desenho dos abastecedores na planta está no build e é JavaScript válido',()=>{
+  const ui=fs.readFileSync(path.join(ROOT,'ui/linhas-ui.js'),'utf8');
+  assert.doesNotThrow(()=>new Function(ui));
+  assert.match(ui,/function feeders\(/);
+  assert.match(ui,/effects=function\(t\)\{e0\(t\);feeders\(t\)\}/);
+  const b=fs.readFileSync(path.join(ROOT,'build.js'),'utf8');assert.match(b,/ui\/linhas-ui\.js/);});
